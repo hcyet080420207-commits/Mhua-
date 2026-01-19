@@ -1,0 +1,3806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天气泡设计器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #fef9ff 0%, #f8f0ff 50%, #fff5f8 100%);
+            min-height: 100vh;
+            color: #5a4a6a;
+        }
+
+        .preview-container {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: linear-gradient(135deg, #ffe4ec 0%, #e8d4f0 50%, #d4e4f8 100%);
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(200, 180, 220, 0.3);
+            box-shadow: 0 4px 20px rgba(180, 150, 200, 0.15);
+            height: 33.33vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-title {
+            text-align: center;
+            font-size: 14px;
+            color: #8a7a9a;
+            margin-bottom: 8px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .preview-bg-toggle {
+            flex-shrink: 0;
+        }
+
+        .preview-area {
+            background: #f5f5f5;
+            border-radius: 16px;
+            padding: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: background 0.3s ease;
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+        }
+
+        .preview-area.glass-bg {
+            background: #e8e0f0;
+            position: relative;
+        }
+
+        .preview-area.glass-bg::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 40%, #a8c0ff 100%);
+            z-index: 0;
+            filter: blur(20px);
+            opacity: 0.8;
+        }
+
+        .preview-area.glass-bg .bubble-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        .preview-area.soft-bg {
+            background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 50%, #16213e 100%);
+        }
+
+        .bubble-wrapper {
+            margin: 12px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .bubble-wrapper.other { justify-content: flex-start; }
+        .bubble-wrapper.mine { justify-content: flex-end; }
+
+        .bubble {
+            position: relative;
+            padding: 6px 10px;
+            max-width: 70%;
+            min-width: 60px;
+            word-wrap: break-word;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+            font-size:14px;
+        }
+
+        .bubble-other {
+            background: #ffffff;
+            color: #333;
+            border-radius: 18px 18px 18px 4px;
+        }
+
+        .bubble-mine {
+            background: #95ec69;
+            color: #333;
+            border-radius: 18px 18px 4px 18px;
+        }
+
+        .decoration-img {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .control-panel {
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            padding-bottom: 40px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 12px rgba(180, 150, 200, 0.1);
+            border: 1px solid rgba(220, 200, 240, 0.3);
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #7a6a8a;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: linear-gradient(180deg, #d4a5ff, #ffb3d9);
+            border-radius: 2px;
+        }
+
+        .bubble-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .bubble-tab {
+            flex: 1;
+            padding: 11px;
+            border: 2px solid #e8d4f0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+            color: #8a7a9a;
+            transition: all 0.3s ease;
+        }
+
+        .bubble-tab.active {
+            border-color: #c4a5e8;
+            background: linear-gradient(135deg, #f8f0ff, #fff5f8);
+            color: #7a5a9a;
+            font-weight: 500;
+        }
+
+        .copy-btn, .action-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #e8d4f0, #ffd4e8);
+            border: none;
+            border-radius: 10px;
+            color: #7a5a8a;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover, .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(200, 150, 220, 0.3);
+        }
+
+        .texture-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+
+        .texture-item {
+            padding: 10px 4px;
+            border: 2px solid #f0e8f8;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            font-size: 11px;
+            color: #8a7a9a;
+            transition: all 0.3s ease;
+        }
+
+        .texture-item.active {
+            border-color: #c4a5e8;
+            background: linear-gradient(135deg, #f8f0ff, #fff5f8);
+            color: #7a5a9a;
+        }
+
+        .texture-item:hover { border-color: #d4b5f0; }
+
+        .color-row, .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .color-label, .slider-label {
+            font-size: 13px;
+            color: #8a7a9a;
+            min-width: 65px;
+        }
+
+        .color-picker-wrapper, .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        input[type="color"] {
+            width: 36px;
+            height: 36px;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        input[type="text"].color-input {
+            flex: 1;
+            padding: 9px 10px;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #5a4a6a;
+            outline: none;
+        }
+
+        input[type="text"].color-input:focus { border-color: #c4a5e8; }
+
+        input[type="range"] {
+            flex: 1;
+            height: 5px;
+            border-radius: 3px;
+            background: #e8d4f0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c4a5e8, #ffb3d9);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(180, 150, 200, 0.4);
+        }
+
+        .slider-value {
+            font-size: 11px;
+            color: #8a7a9a;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        .texture-settings {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(248, 240, 255, 0.5);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .texture-settings.show { display: block; }
+
+        .texture-settings-title {
+            font-size: 12px;
+            color: #a090b0;
+            margin-bottom: 10px;
+        }
+
+        .gradient-colors {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .gradient-color-item { flex: none; }
+
+        .gradient-color-label {
+            font-size: 11px;
+            color: #a090b0;
+            margin-bottom: 4px;
+        }
+
+        .decoration-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .decoration-slot {
+            border: 2px dashed #e8d4f0;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.5);
+            min-height: 100px;
+        }
+
+        .decoration-slot.has-image {
+            border-style: solid;
+            border-color: #c4a5e8;
+        }
+
+        .decoration-preview {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            margin-bottom: 6px;
+        }
+
+        .decoration-placeholder {
+            font-size: 22px;
+            color: #d4c4e4;
+            margin-bottom: 4px;
+        }
+
+        .decoration-text {
+            font-size: 10px;
+            color: #a090b0;
+        }
+
+        .decoration-controls {
+            margin-top: 8px;
+            display: none;
+        }
+
+        .decoration-slot.has-image .decoration-controls { display: block; }
+
+        .size-slider {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #e8d4f0;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #5a4a6a;
+            margin-bottom: 6px;
+            outline: none;
+        }
+
+        .decoration-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .decoration-slider-label {
+            font-size: 10px;
+            color: #8a7a9a;
+            min-width: 28px;
+        }
+
+        .decoration-slider-row input[type="range"] {
+            flex: 1;
+            height: 4px;
+        }
+
+        .decoration-slider-value {
+            font-size: 9px;
+            color: #a090b0;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        .remove-decoration {
+            background: #ffb3b3;
+            border: none;
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-size: 10px;
+            color: white;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        .url-input-wrapper {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 9px 10px;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            font-size: 11px;
+            outline: none;
+        }
+
+        .url-input:focus { border-color: #c4a5e8; }
+
+        .url-add-btn {
+            padding: 9px 12px;
+            background: linear-gradient(135deg, #c4a5e8, #ffb3d9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .saved-decorations {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e8d4f0;
+        }
+
+        .saved-decorations-title {
+            font-size: 11px;
+            color: #a090b0;
+            margin-bottom: 8px;
+        }
+
+        .saved-decorations-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .saved-decoration-item {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #e8d4f0;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .saved-decoration-item:hover {
+            border-color: #c4a5e8;
+            transform: scale(1.05);
+        }
+
+        .saved-decoration-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .saved-decoration-item .delete-saved {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 16px;
+            height: 16px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            color: white;
+            font-size: 10px;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .saved-decoration-item:hover .delete-saved { display: flex; }
+
+        .preset-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .preset-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .save-preset-btn {
+            background: linear-gradient(135deg, #c4a5e8, #d4b5f8);
+            color: white;
+        }
+
+        .preset-list { max-height: 180px; overflow-y: auto; }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            border: 1px solid #f0e8f8;
+        }
+
+        .preset-name { font-size: 12px; color: #5a4a6a; }
+
+        .preset-item-actions { display: flex; gap: 6px; }
+
+        .preset-item-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 5px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .preset-load { background: #d4e8d4; color: #4a6a4a; }
+        .preset-edit { background: #e8e4d4; color: #6a5a4a; }
+        .preset-delete { background: #f8d4d4; color: #8a5a5a; }
+
+        .generate-section {
+            background: linear-gradient(135deg, rgba(196, 165, 232, 0.15), rgba(255, 179, 217, 0.15));
+            border: 2px solid #d4b5f0;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #c4a5e8, #ffb3d9);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(196, 165, 232, 0.4);
+        }
+
+        .code-output {
+            background: #1e1e2e;
+            border-radius: 10px;
+            padding: 12px;
+            display: none;
+        }
+
+        .code-output.show { display: block; }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .code-title { font-size: 11px; color: #a0a0b0; }
+
+        .copy-code-btn {
+            padding: 5px 10px;
+            background: #4a4a6a;
+            border: none;
+            border-radius: 5px;
+            color: #e0e0f0;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .copy-code-btn:hover { background: #5a5a7a; }
+
+        .code-content {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 10px;
+            color: #a0d0a0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 250px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(90, 74, 106, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: white;
+            border-radius: 18px;
+            padding: 22px;
+            width: 90%;
+            max-width: 320px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #5a4a6a;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            margin-bottom: 16px;
+        }
+
+        .modal-input:focus { border-color: #c4a5e8; }
+
+        .modal-actions { display: flex; gap: 8px; }
+
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .modal-cancel { background: #f0e8f8; color: #7a6a8a; }
+
+        .modal-confirm {
+            background: linear-gradient(135deg, #c4a5e8, #ffb3d9);
+            color: white;
+        }
+
+        .hidden-input { display: none; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f8f0ff; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #d4c4e8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c4a5e8; }
+
+        .no-preset { 
+            text-align: center; 
+            color: #a090b0; 
+            font-size: 12px; 
+            padding: 15px; 
+        }
+
+        /* 语音条样式 */
+        .voice-bar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            min-width: 80px;
+            max-width: 60%;
+            transition: all 0.3s ease;
+        }
+
+        .voice-bar-other {
+            background: #ffffff;
+            border-radius: 18px 18px 18px 4px;
+        }
+
+        .voice-bar-mine {
+            background: #95ec69;
+            border-radius: 18px 18px 4px 18px;
+        }
+
+        .voice-icon {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .voice-waves {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .voice-waves span {
+            display: inline-block;
+            width: 3px;
+            background: currentColor;
+            border-radius: 2px;
+            opacity: 0.5;
+        }
+
+        .voice-waves span:nth-child(1) { height: 8px; }
+        .voice-waves span:nth-child(2) { height: 14px; }
+        .voice-waves span:nth-child(3) { height: 10px; }
+        .voice-waves span:nth-child(4) { height: 6px; }
+
+        .voice-duration {
+            font-size: 11px;
+            color: inherit;
+            opacity: 0.7;
+        }
+
+        /* 位置选择器样式 */
+        .corner-selector {
+            margin: 12px 0;
+            padding: 12px;
+            background: rgba(248, 240, 255, 0.8);
+            border-radius: 10px;
+            border: 2px solid #d4b5f0;
+        }
+
+        .corner-selector-title {
+            font-size: 12px;
+            color: #7a6a8a;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .corner-selector-preview {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .corner-selector-preview img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .corner-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .corner-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            background: white;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: #5a4a6a;
+        }
+
+        .corner-option:hover {
+            border-color: #c4a5e8;
+        }
+
+        .corner-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #c4a5e8;
+        }
+
+        .corner-option input[type="checkbox"]:checked + span {
+            color: #7a5a9a;
+            font-weight: 500;
+        }
+
+        .corner-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .corner-cancel-btn, .corner-confirm-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .corner-cancel-btn {
+            background: #f0e8f8;
+            color: #7a6a8a;
+        }
+
+        .corner-confirm-btn {
+            background: linear-gradient(135deg, #c4a5e8, #ffb3d9);
+            color: white;
+        }
+
+        .corner-confirm-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(196, 165, 232, 0.4);
+        }
+
+        /* 槽位标签 */
+        .slot-label {
+            font-size: 11px;
+            color: #8a7a9a;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .decoration-slot.has-image .slot-label {
+            color: #7a5a9a;
+        }
+
+        /* 顶部标题区域 */
+        .site-header {
+            background: linear-gradient(135deg, #c4a5e8 0%, #ffb3d9 50%, #a8d4ff 100%);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(200, 180, 220, 0.3);
+        }
+
+        .site-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 8px rgba(150, 100, 180, 0.3);
+            margin-bottom: 12px;
+        }
+
+        .site-notice {
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            padding: 12px 16px;
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: left;
+            font-size: 12px;
+            color: #5a4a6a;
+            border: 1px solid rgba(220, 200, 240, 0.5);
+        }
+
+        .site-notice p {
+            font-weight: 600;
+            color: #7a5a9a;
+            margin-bottom: 6px;
+        }
+
+        .site-notice ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .site-notice li {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .site-notice strong {
+            color: #c4a5e8;
+        }
+
+        /* 底部版权水印 */
+        .site-footer {
+            background: linear-gradient(135deg, #f8f0ff 0%, #fff5f8 100%);
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid rgba(220, 200, 240, 0.3);
+        }
+
+        .copyright {
+            font-size: 12px;
+            color: #a090b0;
+        }
+
+        .copyright a {
+            color: #c4a5e8;
+            text-decoration: none;
+        }
+
+        .copyright a:hover {
+            text-decoration: underline;
+        }
+
+        /* 预览背景切换按钮 */
+        .preview-bg-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .toggle-label {
+            font-size: 12px;
+            color: #8a7a9a;
+        }
+
+        .toggle-options {
+            display: flex;
+            gap: 6px;
+        }
+
+        .bg-option {
+            padding: 6px 14px;
+            border: 2px solid #e8d4f0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            color: #8a7a9a;
+            transition: all 0.3s ease;
+        }
+
+        .bg-option.active {
+            border-color: #c4a5e8;
+            background: linear-gradient(135deg, #f8f0ff, #fff5f8);
+            color: #7a5a9a;
+            font-weight: 500;
+        }
+
+        .bg-option:hover {
+            border-color: #d4b5f0;
+        }
+
+        .preview-area.dark-bg {
+            background: #191b31;
+        }
+
+        /* 转账卡片预览样式 */
+        .transfer-card-preview {
+            position: relative;
+            padding: 12px;
+            border-radius: 12px;
+            min-width: 140px;
+            max-width: 70%;
+            overflow: visible;  /* 改为visible，让装饰物可以显示在外部 */
+            background: #f5f5f5;
+        }
+
+        .transfer-card-preview .transfer-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: cover;
+            background-position: center;
+            z-index: 0;
+            border-radius: inherit;  /* 继承圆角，确保背景图不会超出圆角 */
+            overflow: hidden;  /* 背景图容器设置overflow:hidden */
+        }
+
+        .transfer-card-preview .transfer-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+            border-radius: inherit;  /* 继承圆角 */
+            overflow: hidden;  /* 蒙版容器也设置overflow:hidden */
+        }
+
+        .transfer-card-preview .transfer-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+        
+        /* 转账卡片装饰物样式 */
+        .transfer-card-preview .transfer-decoration-img {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .transfer-card-preview .transfer-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .transfer-card-preview .transfer-amount {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .transfer-card-preview .transfer-note {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* 转账卡片选择器 */
+        .transfer-card-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .transfer-card-tab {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e8d4f0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            color: #8a7a9a;
+            transition: all 0.3s ease;
+        }
+
+        .transfer-card-tab.active {
+            border-color: #c4a5e8;
+            background: linear-gradient(135deg, #f8f0ff, #fff5f8);
+            color: #7a5a9a;
+            font-weight: 500;
+        }
+
+        /* 背景图预览 */
+        .bg-preview-box {
+            width: 100%;
+            height: 80px;
+            border: 2px dashed #e8d4f0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            overflow: hidden;
+            position: relative;
+            background: #fafafa;
+        }
+
+        .bg-preview-box.has-bg {
+            border-style: solid;
+            border-color: #c4a5e8;
+        }
+
+        .bg-preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .bg-preview-placeholder {
+            font-size: 12px;
+            color: #a090b0;
+        }
+
+        .bg-preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .remove-bg-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 100, 100, 0.9);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bg-preview-box.has-bg .remove-bg-btn {
+            display: flex;
+        }
+
+        /* 一键应用按钮样式 */
+        .apply-bubble-style-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #a8d4ff, #c4a5e8);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .apply-bubble-style-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(168, 212, 255, 0.4);
+        }
+
+        .apply-bubble-style-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部标题区域 -->
+    <header class="site-header">
+        <h1 class="site-title">猫猫鱼の聊天气泡设计器๑>ᴗO๑</h1>
+        <div class="site-notice">
+            <p> ☆ 注意事项：</p>
+            <ul>
+                <li>由于CSS伪元素限制，每个气泡最多只能添加 <strong>2个</strong> 装饰物</li>
+                <li>气泡代码适配JRSY和EVE小手机</li>
+                <li>生成的代码由设计者决定是否可二改二传~祝大家食用愉快</li>
+            </ul>
+        </div>
+    </header>
+
+    <div class="preview-container">
+        <div class="preview-title">✨ 实时预览</div>
+        <div class="preview-bg-toggle">
+            <span class="toggle-label">背景色：</span>
+            <div class="toggle-options">
+                <button class="bg-option active" data-bg="light" onclick="switchPreviewBg('light')">浅色</button>
+                <button class="bg-option" data-bg="dark" onclick="switchPreviewBg('dark')">深色</button>
+            </div>
+        </div>
+        <div class="preview-area" id="previewArea">
+            <div class="bubble-wrapper other">
+                <div class="bubble bubble-other" id="bubbleOther">你好呀，今天天气真不错！</div>
+            </div>
+            <div class="bubble-wrapper mine">
+                <div class="bubble bubble-mine" id="bubbleMine">是呀，要不要一起出去走走？</div>
+            </div>
+            <div class="bubble-wrapper other">
+                <div class="voice-bar voice-bar-other" id="voiceBarOther">
+                    <div class="voice-waves">
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <div class="voice-duration">0:05</div>
+                </div>
+            </div>
+            <div class="bubble-wrapper mine">
+                <div class="voice-bar voice-bar-mine" id="voiceBarMine">
+                    <div class="voice-waves">
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <div class="voice-duration">0:03</div>
+                </div>
+            </div>
+            <!-- 转账卡片预览 -->
+            <div class="bubble-wrapper other">
+                <div class="transfer-card-preview" id="transferCardOther">
+                    <div class="transfer-bg" id="transferBgOther"></div>
+                    <div class="transfer-overlay" id="transferOverlayOther"></div>
+                    <div class="transfer-content">
+                        <div class="transfer-icon">♡♡♡</div>
+                        <div class="transfer-amount">¥88.00</div>
+                        <div class="transfer-note">转账给你</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bubble-wrapper mine">
+                <div class="transfer-card-preview" id="transferCardMine">
+                    <div class="transfer-bg" id="transferBgMine"></div>
+                    <div class="transfer-overlay" id="transferOverlayMine"></div>
+                    <div class="transfer-content">
+                        <div class="transfer-icon">⌯>ᴗo⌯ಣ</div>
+                        <div class="transfer-amount">¥66.00</div>
+                        <div class="transfer-note">转账给ta</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="section">
+            <div class="section-title">选择编辑气泡</div>
+            <div class="bubble-selector">
+                <div class="bubble-tab active" data-target="other" onclick="selectBubble('other')">对方气泡</div>
+                <div class="bubble-tab" data-target="mine" onclick="selectBubble('mine')">我的气泡</div>
+            </div>
+            <button class="copy-btn" onclick="copyToOther()">📋 一键复制样式到另一方</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">气泡质感</div>
+            <div class="texture-grid">
+                <div class="texture-item active" data-texture="flat" onclick="selectTexture('flat')">扁平</div>
+                <div class="texture-item" data-texture="glass" onclick="selectTexture('glass')">毛玻璃</div>
+                <div class="texture-item" data-texture="jelly" onclick="selectTexture('jelly')">果冻</div>
+                <div class="texture-item" data-texture="gradient" onclick="selectTexture('gradient')">渐变</div>
+                <div class="texture-item" data-texture="soft" onclick="selectTexture('soft')">柔光</div>
+            </div>
+            
+            <div class="texture-settings" id="glassSettings">
+                <div class="texture-settings-title">毛玻璃设置</div>
+                <div class="slider-row">
+                    <span class="slider-label">模糊度</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="0" max="30" value="12" id="glassBlur" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="glassBlurValue">12px</span>
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-label">背景透明</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="5" max="60" value="25" id="glassOpacity" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="glassOpacityValue">25%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="texture-settings" id="jellySettings">
+                <div class="texture-settings-title">果冻高光设置</div>
+                <div style="font-size: 11px; color: #7a6a8a; margin-bottom: 6px; font-weight: 500;">顶部高光</div>
+                <div class="slider-row">
+                    <span class="slider-label">高光强度</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="0" max="100" value="77" id="jellyTopOpacity" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="jellyTopOpacityValue">77%</span>
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-label">高光范围</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="10" max="60" value="20" id="jellyTopSize" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="jellyTopSizeValue">20%</span>
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: #7a6a8a; margin-bottom: 6px; margin-top: 10px; font-weight: 500;">底部高光</div>
+                <div class="slider-row">
+                    <span class="slider-label">高光强度</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="50" max="100" value="94" id="jellyBottomOpacity" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="jellyBottomOpacityValue">94%</span>
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-label">高光范围</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="10" max="60" value="31" id="jellyBottomSize" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="jellyBottomSizeValue">31%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="texture-settings" id="gradientSettings">
+                <div class="texture-settings-title">渐变设置</div>
+                <div class="gradient-colors">
+                    <div class="gradient-color-item">
+                        <div class="gradient-color-label">颜色1</div>
+                        <div class="color-picker-wrapper">
+                            <input type="color" value="#ffb3d9" id="gradientColor1" onchange="updateGradientColor1()">
+                            <input type="text" class="color-input" id="gradientColor1Text" value="#ffb3d9" oninput="updateGradientColor1FromText()">
+                        </div>
+                    </div>
+                    <div class="gradient-color-item">
+                        <div class="gradient-color-label">颜色2</div>
+                        <div class="color-picker-wrapper">
+                            <input type="color" value="#c4a5e8" id="gradientColor2" onchange="updateGradientColor2()">
+                            <input type="text" class="color-input" id="gradientColor2Text" value="#c4a5e8" oninput="updateGradientColor2FromText()">
+                        </div>
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-label">角度</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="0" max="360" value="135" id="gradientAngle" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="gradientAngleValue">135°</span>
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-label">过渡位置</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="20" max="80" value="50" id="gradientPosition" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="gradientPositionValue">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="texture-settings" id="softSettings">
+                <div class="texture-settings-title">柔光设置</div>
+                <div class="slider-row">
+                    <span class="slider-label">外发光</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="0" max="30" value="12" id="softOuter" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="softOuterValue">12px</span>
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-label">内发光</span>
+                    <div class="slider-wrapper">
+                        <input type="range" min="0" max="30" value="15" id="softInner" oninput="updateTextureSettings()">
+                        <span class="slider-value" id="softInnerValue">15px</span>
+                    </div>
+                </div>
+                <div class="color-row">
+                    <span class="color-label">发光颜色</span>
+                    <div class="color-picker-wrapper">
+                        <input type="color" value="#dddcf4" id="softGlowColor" onchange="updateSoftGlowColor()">
+                        <input type="text" class="color-input" id="softGlowColorText" value="#ffd1dc" oninput="updateSoftGlowColorFromText()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">背景颜色</div>
+            <div class="color-row">
+                <span class="color-label">颜色</span>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="bgColor" value="#ffffff" onchange="updateBgColor()">
+                    <input type="text" class="color-input" id="bgColorText" value="#ffffff" oninput="updateBgColorFromText()">
+                </div>
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">透明度</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="100" value="100" id="bgOpacity" oninput="updateBgOpacity()">
+                    <span class="slider-value" id="bgOpacityValue">100%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">圆角与阴影</div>
+            <div class="slider-row">
+                <span class="slider-label">圆角大小</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="30" value="18" id="borderRadius" oninput="updateBorderRadius()">
+                    <span class="slider-value" id="borderRadiusValue">18px</span>
+                </div>
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">阴影大小</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="30" value="0" id="shadowSize" oninput="updateShadow()">
+                    <span class="slider-value" id="shadowSizeValue">0px</span>
+                </div>
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">阴影模糊</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="30" value="10" id="shadowBlur" oninput="updateShadow()">
+                    <span class="slider-value" id="shadowBlurValue">10px</span>
+                </div>
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">水平偏移</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="-20" max="20" value="0" id="shadowOffsetX" oninput="updateShadow()">
+                    <span class="slider-value" id="shadowOffsetXValue">0px</span>
+                </div>
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">垂直偏移</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="-20" max="20" value="0" id="shadowOffsetY" oninput="updateShadow()">
+                    <span class="slider-value" id="shadowOffsetYValue">0px</span>
+                </div>
+            </div>
+            <div class="color-row">
+                <span class="color-label">阴影颜色</span>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="shadowColor" value="#cccccc" onchange="updateShadowColor()">
+                    <input type="text" class="color-input" id="shadowColorText" value="#cccccc" oninput="updateShadowColorFromText()">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">文字设置</div>
+            <div class="color-row">
+                <span class="color-label">字体颜色</span>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="fontColor" value="#333333" onchange="updateFontColor()">
+                    <input type="text" class="color-input" id="fontColorText" value="#333333" oninput="updateFontColorFromText()">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">边框设置</div>
+            
+            <!-- 外边框 -->
+            <div style="font-size: 12px; color: #7a6a8a; margin-bottom: 8px; font-weight: 500;">外边框</div>
+            <div class="slider-row">
+                <span class="slider-label">边框宽度</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="3" step="0.5" value="0" id="outerBorderWidth" oninput="updateOuterBorder()">
+                    <span class="slider-value" id="outerBorderWidthValue">0px</span>
+                </div>
+            </div>
+            <div class="color-row">
+                <span class="color-label">边框颜色</span>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="outerBorderColor" value="#cccccc" onchange="updateOuterBorderColor()">
+                    <input type="text" class="color-input" id="outerBorderColorText" value="#cccccc" oninput="updateOuterBorderColorFromText()">
+                </div>
+            </div>
+            
+            <!-- 内边框 -->
+            <div style="font-size: 12px; color: #7a6a8a; margin-bottom: 8px; margin-top: 12px; font-weight: 500;">内边框</div>
+            <div class="slider-row">
+                <span class="slider-label">边框宽度</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="3" step="0.5" value="0" id="innerBorderWidth" oninput="updateInnerBorder()">
+                    <span class="slider-value" id="innerBorderWidthValue">0px</span>
+                </div>
+            </div>
+            <div class="color-row">
+                <span class="color-label">边框颜色</span>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="innerBorderColor" value="#cccccc" onchange="updateInnerBorderColor()">
+                    <input type="text" class="color-input" id="innerBorderColorText" value="#cccccc" oninput="updateInnerBorderColorFromText()">
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="section">
+            <div class="section-title">气泡装饰</div>
+            <div style="font-size: 11px; color: #a090b0; margin-bottom: 8px; padding: 6px 8px; background: rgba(255,200,200,0.2); border-radius: 6px; border: 1px solid rgba(255,150,150,0.3);">
+                ⚠️ 提示：由于CSS伪元素限制，每个气泡最多只能添加 <strong>2个</strong> 装饰物
+            </div>
+            
+            <!-- 装饰物输入区 -->
+            <div class="url-input-wrapper">
+                <input type="text" class="url-input" id="decorationUrl" placeholder="输入图片URL添加装饰">
+                <button class="url-add-btn" onclick="showCornerSelector()">添加</button>
+            </div>
+            
+            <!-- 位置选择器（添加时显示） -->
+            <div class="corner-selector" id="cornerSelector" style="display:none;">
+                <div class="corner-selector-title">选择装饰位置（可多选）</div>
+                <div class="corner-selector-preview">
+                    <img id="cornerPreviewImg" src="" alt="预览">
+                </div>
+                <div class="corner-options">
+                    <label class="corner-option">
+                        <input type="checkbox" value="0" id="corner0"> 
+                        <span>↖ 左上</span>
+                    </label>
+                    <label class="corner-option">
+                        <input type="checkbox" value="1" id="corner1"> 
+                        <span>↗ 右上</span>
+                    </label>
+                    <label class="corner-option">
+                        <input type="checkbox" value="2" id="corner2"> 
+                        <span>↙ 左下</span>
+                    </label>
+                    <label class="corner-option">
+                        <input type="checkbox" value="3" id="corner3"> 
+                        <span>↘ 右下</span>
+                    </label>
+                </div>
+                <div class="corner-actions">
+                    <button class="corner-cancel-btn" onclick="hideCornerSelector()">取消</button>
+                    <button class="corner-confirm-btn" onclick="confirmAddDecoration()">确认添加</button>
+                </div>
+            </div>
+            
+            <!-- 四个角的装饰槽位 -->
+            <div class="decoration-grid" id="decorationGrid">
+                <div class="decoration-slot" data-slot="0" data-corner="左上">
+                    <div class="slot-label">↖ 左上</div>
+                    <div class="decoration-placeholder">+</div>
+                    <div class="decoration-text">无装饰</div>
+                    <div class="decoration-controls"></div>
+                </div>
+                <div class="decoration-slot" data-slot="1" data-corner="右上">
+                    <div class="slot-label">↗ 右上</div>
+                    <div class="decoration-placeholder">+</div>
+                    <div class="decoration-text">无装饰</div>
+                    <div class="decoration-controls"></div>
+                </div>
+                <div class="decoration-slot" data-slot="2" data-corner="左下">
+                    <div class="slot-label">↙ 左下</div>
+                    <div class="decoration-placeholder">+</div>
+                    <div class="decoration-text">无装饰</div>
+                    <div class="decoration-controls"></div>
+                </div>
+                <div class="decoration-slot" data-slot="3" data-corner="右下">
+                    <div class="slot-label">↘ 右下</div>
+                    <div class="decoration-placeholder">+</div>
+                    <div class="decoration-text">无装饰</div>
+                    <div class="decoration-controls"></div>
+                </div>
+            </div>
+            <div class="saved-decorations" id="savedDecorations">
+                <div class="saved-decorations-title">📁 已保存的装饰</div>
+                <div class="saved-decorations-grid" id="savedDecorationsGrid"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">转账卡片自定义</div>
+            <div class="transfer-card-selector">
+                <div class="transfer-card-tab active" data-target="other" onclick="selectTransferCard('other')">对方转账卡片</div>
+                <div class="transfer-card-tab" data-target="mine" onclick="selectTransferCard('mine')">我的转账卡片</div>
+            </div>
+            
+            <!-- 一键应用气泡样式按钮 -->
+            <button class="apply-bubble-style-btn" onclick="applyBubbleStyleToTransferCard()">✨ 一键应用气泡样式到转账卡片</button>
+            
+            <!-- 背景图设置 -->
+            <div style="font-size: 12px; color: #7a6a8a; margin-bottom: 8px; font-weight: 500;">背景图片</div>
+            <div class="bg-preview-box" id="transferBgPreview">
+                <span class="bg-preview-placeholder">暂无背景图</span>
+                <img id="transferBgPreviewImg" src="" alt="背景预览" style="display:none;">
+                <div class="bg-preview-overlay" id="transferBgPreviewOverlay"></div>
+                <button class="remove-bg-btn" onclick="removeTransferBg()">×</button>
+            </div>
+            <div class="url-input-wrapper">
+                <input type="text" class="url-input" id="transferBgUrl" placeholder="输入背景图片URL">
+                <button class="url-add-btn" onclick="applyTransferBgUrl()">应用</button>
+            </div>
+            
+            <!-- 背景图透明度 -->
+            <div class="slider-row" style="margin-top: 12px;">
+                <span class="slider-label">背景透明度</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="100" value="100" id="transferBgOpacity" oninput="updateTransferBgOpacity()">
+                    <span class="slider-value" id="transferBgOpacityValue">100%</span>
+                </div>
+            </div>
+            
+            <!-- 蒙版设置 -->
+            <div style="font-size: 12px; color: #7a6a8a; margin-bottom: 8px; margin-top: 12px; font-weight: 500;">蒙版设置</div>
+            <div class="color-row">
+                <span class="color-label">蒙版颜色</span>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="transferOverlayColor" value="#ffffff" onchange="updateTransferOverlayColor()">
+                    <input type="text" class="color-input" id="transferOverlayColorText" value="#ffffff" oninput="updateTransferOverlayColorFromText()">
+                </div>
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">蒙版透明度</span>
+                <div class="slider-wrapper">
+                    <input type="range" min="0" max="100" value="0" id="transferOverlayOpacity" oninput="updateTransferOverlayOpacity()">
+                    <span class="slider-value" id="transferOverlayOpacityValue">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">预设管理</div>
+            <div class="preset-actions">
+                <button class="preset-btn save-preset-btn" onclick="openSavePresetModal()">💾 保存预设</button>
+            </div>
+            <div class="preset-list" id="presetList">
+                <div class="no-preset">暂无保存的预设</div>
+            </div>
+        </div>
+
+        <div class="section generate-section">
+            <div class="section-title">生成代码</div>
+            <div class="format-selector" style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <div class="format-option active" data-format="eve" onclick="selectFormat('eve')" style="flex: 1; padding: 10px; border: 2px solid #c4a5e8; border-radius: 10px; background: linear-gradient(135deg, #f8f0ff, #fff5f8); cursor: pointer; text-align: center; font-size: 12px; color: #7a5a9a; font-weight: 500;">
+                    EVE格式
+                </div>
+                <div class="format-option" data-format="jrsy" onclick="selectFormat('jrsy')" style="flex: 1; padding: 10px; border: 2px solid #e8d4f0; border-radius: 10px; background: white; cursor: pointer; text-align: center; font-size: 12px; color: #8a7a9a;">
+                    JRSY格式
+                </div>
+            </div>
+            <button class="generate-btn" onclick="generateCode()">✨ 生成 CSS 代码</button>
+            <div class="code-output" id="codeOutput">
+                <div class="code-header">
+                    <span class="code-title">CSS 代码</span>
+                    <button class="copy-code-btn" onclick="copyCode()">📋 一键复制</button>
+                </div>
+                <pre class="code-content" id="codeContent"></pre>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal" id="presetModal">
+        <div class="modal-content">
+            <div class="modal-title">保存预设</div>
+            <input type="text" class="modal-input" id="presetNameInput" placeholder="输入预设名称">
+            <div class="modal-actions">
+                <button class="modal-btn modal-cancel" onclick="closePresetModal()">取消</button>
+                <button class="modal-btn modal-confirm" onclick="savePreset()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 底部版权水印 -->
+    <footer class="site-footer">
+        <p class="copyright">
+            © 2026 在下猫猫鱼 | 聊天气泡设计器 | Q:3446226947 xhs：MarioUvU
+        </p>
+    </footer>
+
+    <script>
+        // 状态管理
+        let currentBubble = 'other';
+        let currentUploadSlot = 0;
+        let codeFormat = 'eve'; // 'eve' 或 'jrsy'
+        
+        // 预览背景切换
+        function switchPreviewBg(type) {
+            const previewArea = document.getElementById('previewArea');
+            document.querySelectorAll('.bg-option').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.bg === type);
+            });
+            previewArea.classList.remove('dark-bg');
+            if (type === 'dark') {
+                previewArea.classList.add('dark-bg');
+            }
+        }
+
+        const bubbleStyles = {
+            other: {
+                texture: 'flat',
+                bgColor: '#dddcf4',
+                bgOpacity: 100,
+                borderRadius: 18,
+                shadowSize: 2,
+                shadowBlur: 6,
+                shadowOffsetX: 0,
+                shadowOffsetY: 0,
+                shadowColor: '#cccccc',
+                fontSize: 14,
+                fontColor: '#333333',
+                // 边框设置
+                outerBorderWidth: 0,
+                outerBorderColor: '#cccccc',
+                innerBorderWidth: 0,
+                innerBorderColor: '#cccccc',
+                // 质感特有设置
+                glassBlur: 12,
+                glassOpacity: 25,
+                jellyTopOpacity: 77,
+                jellyTopSize: 20,
+                jellyBottomOpacity: 94,
+                jellyBottomSize: 31,
+                gradientColor1: '#ffe5f2',
+                gradientColor2: '#dcdafb',
+                gradientAngle: 135,
+                gradientPosition: 50,
+                softOuter: 8,
+                softInner: 10,
+                softGlowColor: '#dddcf4',
+                decorations: [
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 },
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 },
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 },
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 }
+                ]
+            },
+            mine: {
+                texture: 'flat',
+                bgColor: '#ffebf3',
+                bgOpacity: 100,
+                borderRadius: 18,
+                shadowSize: 2,
+                shadowBlur: 6,
+                shadowOffsetX: 0,
+                shadowOffsetY: 0,
+                shadowColor: '#cccccc',
+                fontSize: 14,
+                fontColor: '#333333',
+                // 边框设置
+                outerBorderWidth: 0,
+                outerBorderColor: '#cccccc',
+                innerBorderWidth: 0,
+                innerBorderColor: '#cccccc',
+                glassBlur: 12,
+                glassOpacity: 25,
+                jellyTopOpacity: 77,
+                jellyTopSize: 20,
+                jellyBottomOpacity: 94,
+                jellyBottomSize: 31,
+                gradientColor1: '#ffe5f2',
+                gradientColor2: '#dcdafb',
+                gradientAngle: 135,
+                gradientPosition: 50,
+                softOuter: 8,
+                softInner: 10,
+                softGlowColor: '#ffebf3',
+                decorations: [
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 },
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 },
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 },
+                    { src: '', size: 30, offsetX: 0, offsetY: 0 }
+                ]
+            }
+        };
+
+        let savedDecorations = JSON.parse(localStorage.getItem('savedDecorations') || '[]');
+        let presets = JSON.parse(localStorage.getItem('bubblePresets') || '[]');
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSavedDecorations();
+            renderPresetList();
+            applyBubbleStyle('other');
+            applyBubbleStyle('mine');
+        });
+
+        // 气泡选择
+        function selectBubble(type) {
+            currentBubble = type;
+            document.querySelectorAll('.bubble-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.target === type);
+            });
+            loadStyleToControls(bubbleStyles[type]);
+        }
+
+        // 加载样式到控制器
+        function loadStyleToControls(style) {
+            document.getElementById('bgColor').value = style.bgColor;
+            document.getElementById('bgColorText').value = style.bgColor;
+            document.getElementById('bgOpacity').value = style.bgOpacity;
+            document.getElementById('bgOpacityValue').textContent = style.bgOpacity + '%';
+            document.getElementById('borderRadius').value = style.borderRadius;
+            document.getElementById('borderRadiusValue').textContent = style.borderRadius + 'px';
+            document.getElementById('shadowSize').value = style.shadowSize;
+            document.getElementById('shadowSizeValue').textContent = style.shadowSize + 'px';
+            document.getElementById('shadowBlur').value = style.shadowBlur;
+            document.getElementById('shadowBlurValue').textContent = style.shadowBlur + 'px';
+            document.getElementById('shadowOffsetX').value = style.shadowOffsetX || 0;
+            document.getElementById('shadowOffsetXValue').textContent = (style.shadowOffsetX || 0) + 'px';
+            document.getElementById('shadowOffsetY').value = style.shadowOffsetY || 0;
+            document.getElementById('shadowOffsetYValue').textContent = (style.shadowOffsetY || 0) + 'px';
+            document.getElementById('shadowColor').value = style.shadowColor;
+            document.getElementById('shadowColorText').value = style.shadowColor;
+            document.getElementById('fontColor').value = style.fontColor || '#333333';
+            document.getElementById('fontColorText').value = style.fontColor || '#333333';
+            
+            // 质感设置
+            document.getElementById('glassBlur').value = style.glassBlur;
+            document.getElementById('glassBlurValue').textContent = style.glassBlur + 'px';
+            document.getElementById('glassOpacity').value = style.glassOpacity;
+            document.getElementById('glassOpacityValue').textContent = style.glassOpacity + '%';
+            // 果冻设置 - 上下双高光
+            document.getElementById('jellyTopOpacity').value = style.jellyTopOpacity;
+            document.getElementById('jellyTopOpacityValue').textContent = style.jellyTopOpacity + '%';
+            document.getElementById('jellyTopSize').value = style.jellyTopSize;
+            document.getElementById('jellyTopSizeValue').textContent = style.jellyTopSize + '%';
+            document.getElementById('jellyBottomOpacity').value = style.jellyBottomOpacity;
+            document.getElementById('jellyBottomOpacityValue').textContent = style.jellyBottomOpacity + '%';
+            document.getElementById('jellyBottomSize').value = style.jellyBottomSize;
+            document.getElementById('jellyBottomSizeValue').textContent = style.jellyBottomSize + '%';
+            document.getElementById('gradientColor1').value = style.gradientColor1;
+            document.getElementById('gradientColor1Text').value = style.gradientColor1;
+            document.getElementById('gradientColor2').value = style.gradientColor2;
+            document.getElementById('gradientColor2Text').value = style.gradientColor2;
+            document.getElementById('gradientAngle').value = style.gradientAngle;
+            document.getElementById('gradientAngleValue').textContent = style.gradientAngle + '°';
+            document.getElementById('gradientPosition').value = style.gradientPosition;
+            document.getElementById('gradientPositionValue').textContent = style.gradientPosition + '%';
+            document.getElementById('softOuter').value = style.softOuter;
+            document.getElementById('softOuterValue').textContent = style.softOuter + 'px';
+            document.getElementById('softInner').value = style.softInner;
+            document.getElementById('softInnerValue').textContent = style.softInner + 'px';
+            document.getElementById('softGlowColor').value = style.softGlowColor;
+            document.getElementById('softGlowColorText').value = style.softGlowColor;
+            
+            // 边框设置
+            document.getElementById('outerBorderWidth').value = style.outerBorderWidth || 0;
+            document.getElementById('outerBorderWidthValue').textContent = (style.outerBorderWidth || 0) + 'px';
+            document.getElementById('outerBorderColor').value = style.outerBorderColor || '#cccccc';
+            document.getElementById('outerBorderColorText').value = style.outerBorderColor || '#cccccc';
+            document.getElementById('innerBorderWidth').value = style.innerBorderWidth || 0;
+            document.getElementById('innerBorderWidthValue').textContent = (style.innerBorderWidth || 0) + 'px';
+            document.getElementById('innerBorderColor').value = style.innerBorderColor || '#cccccc';
+            document.getElementById('innerBorderColorText').value = style.innerBorderColor || '#cccccc';
+            
+            // 选中对应质感
+            document.querySelectorAll('.texture-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.texture === style.texture);
+            });
+            showTextureSettings(style.texture);
+            
+            // 加载装饰物
+            loadDecorations(style.decorations);
+        }
+
+        // 复制样式到另一方
+        function copyToOther() {
+            const source = currentBubble;
+            const target = source === 'other' ? 'mine' : 'other';
+            bubbleStyles[target] = JSON.parse(JSON.stringify(bubbleStyles[source]));
+            applyBubbleStyle(target);
+            showToast('样式已复制到' + (target === 'other' ? '对方' : '我的') + '气泡');
+        }
+
+        // 质感选择
+        function selectTexture(texture) {
+            bubbleStyles[currentBubble].texture = texture;
+            document.querySelectorAll('.texture-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.texture === texture);
+            });
+            showTextureSettings(texture);
+            applyBubbleStyle(currentBubble);
+            
+            // 根据质感更改预览区背景（仅毛玻璃需要特殊背景）
+            const previewArea = document.getElementById('previewArea');
+            previewArea.classList.remove('glass-bg');
+            if (texture === 'glass') {
+                previewArea.classList.add('glass-bg');
+            }
+        }
+
+        function showTextureSettings(texture) {
+            document.querySelectorAll('.texture-settings').forEach(el => el.classList.remove('show'));
+            const settingsMap = {
+                glass: 'glassSettings',
+                jelly: 'jellySettings',
+                gradient: 'gradientSettings',
+                soft: 'softSettings'
+            };
+            if (settingsMap[texture]) {
+                document.getElementById(settingsMap[texture]).classList.add('show');
+            }
+        }
+
+        // 更新质感设置
+        function updateTextureSettings() {
+            const style = bubbleStyles[currentBubble];
+            style.glassBlur = parseInt(document.getElementById('glassBlur').value);
+            style.glassOpacity = parseInt(document.getElementById('glassOpacity').value);
+            // 果冻设置 - 上下双高光
+            style.jellyTopOpacity = parseInt(document.getElementById('jellyTopOpacity').value);
+            style.jellyTopSize = parseInt(document.getElementById('jellyTopSize').value);
+            style.jellyBottomOpacity = parseInt(document.getElementById('jellyBottomOpacity').value);
+            style.jellyBottomSize = parseInt(document.getElementById('jellyBottomSize').value);
+            style.gradientColor1 = document.getElementById('gradientColor1').value;
+            style.gradientColor2 = document.getElementById('gradientColor2').value;
+            style.gradientAngle = parseInt(document.getElementById('gradientAngle').value);
+            style.gradientPosition = parseInt(document.getElementById('gradientPosition').value);
+            style.softOuter = parseInt(document.getElementById('softOuter').value);
+            style.softInner = parseInt(document.getElementById('softInner').value);
+            style.softGlowColor = document.getElementById('softGlowColor').value;
+            
+            // 更新显示值
+            document.getElementById('glassBlurValue').textContent = style.glassBlur + 'px';
+            document.getElementById('glassOpacityValue').textContent = style.glassOpacity + '%';
+            document.getElementById('jellyTopOpacityValue').textContent = style.jellyTopOpacity + '%';
+            document.getElementById('jellyTopSizeValue').textContent = style.jellyTopSize + '%';
+            document.getElementById('jellyBottomOpacityValue').textContent = style.jellyBottomOpacity + '%';
+            document.getElementById('jellyBottomSizeValue').textContent = style.jellyBottomSize + '%';
+            document.getElementById('gradientAngleValue').textContent = style.gradientAngle + '°';
+            document.getElementById('gradientPositionValue').textContent = style.gradientPosition + '%';
+            document.getElementById('softOuterValue').textContent = style.softOuter + 'px';
+            document.getElementById('softInnerValue').textContent = style.softInner + 'px';
+            
+            applyBubbleStyle(currentBubble);
+        }
+
+        // 背景颜色
+        function updateBgColor() {
+            const color = document.getElementById('bgColor').value;
+            document.getElementById('bgColorText').value = color;
+            bubbleStyles[currentBubble].bgColor = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateBgColorFromText() {
+            const color = document.getElementById('bgColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('bgColor').value = color;
+                bubbleStyles[currentBubble].bgColor = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        function updateBgOpacity() {
+            const opacity = document.getElementById('bgOpacity').value;
+            document.getElementById('bgOpacityValue').textContent = opacity + '%';
+            bubbleStyles[currentBubble].bgOpacity = parseInt(opacity);
+            applyBubbleStyle(currentBubble);
+        }
+
+        // 圆角
+        function updateBorderRadius() {
+            const radius = document.getElementById('borderRadius').value;
+            document.getElementById('borderRadiusValue').textContent = radius + 'px';
+            bubbleStyles[currentBubble].borderRadius = parseInt(radius);
+            applyBubbleStyle(currentBubble);
+        }
+
+        // 阴影
+        function updateShadow() {
+            const size = document.getElementById('shadowSize').value;
+            const blur = document.getElementById('shadowBlur').value;
+            const offsetX = document.getElementById('shadowOffsetX').value;
+            const offsetY = document.getElementById('shadowOffsetY').value;
+            document.getElementById('shadowSizeValue').textContent = size + 'px';
+            document.getElementById('shadowBlurValue').textContent = blur + 'px';
+            document.getElementById('shadowOffsetXValue').textContent = offsetX + 'px';
+            document.getElementById('shadowOffsetYValue').textContent = offsetY + 'px';
+            bubbleStyles[currentBubble].shadowSize = parseInt(size);
+            bubbleStyles[currentBubble].shadowBlur = parseInt(blur);
+            bubbleStyles[currentBubble].shadowOffsetX = parseInt(offsetX);
+            bubbleStyles[currentBubble].shadowOffsetY = parseInt(offsetY);
+            bubbleStyles[currentBubble].shadowColor = document.getElementById('shadowColor').value;
+            applyBubbleStyle(currentBubble);
+        }
+
+        // 阴影颜色
+        function updateShadowColor() {
+            const color = document.getElementById('shadowColor').value;
+            document.getElementById('shadowColorText').value = color;
+            bubbleStyles[currentBubble].shadowColor = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateShadowColorFromText() {
+            const color = document.getElementById('shadowColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('shadowColor').value = color;
+                bubbleStyles[currentBubble].shadowColor = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // 渐变颜色1
+        function updateGradientColor1() {
+            const color = document.getElementById('gradientColor1').value;
+            document.getElementById('gradientColor1Text').value = color;
+            bubbleStyles[currentBubble].gradientColor1 = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateGradientColor1FromText() {
+            const color = document.getElementById('gradientColor1Text').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('gradientColor1').value = color;
+                bubbleStyles[currentBubble].gradientColor1 = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // 渐变颜色2
+        function updateGradientColor2() {
+            const color = document.getElementById('gradientColor2').value;
+            document.getElementById('gradientColor2Text').value = color;
+            bubbleStyles[currentBubble].gradientColor2 = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateGradientColor2FromText() {
+            const color = document.getElementById('gradientColor2Text').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('gradientColor2').value = color;
+                bubbleStyles[currentBubble].gradientColor2 = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // 发光颜色
+        function updateSoftGlowColor() {
+            const color = document.getElementById('softGlowColor').value;
+            document.getElementById('softGlowColorText').value = color;
+            bubbleStyles[currentBubble].softGlowColor = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateSoftGlowColorFromText() {
+            const color = document.getElementById('softGlowColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('softGlowColor').value = color;
+                bubbleStyles[currentBubble].softGlowColor = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // 字体颜色
+        function updateFontColor() {
+            const color = document.getElementById('fontColor').value;
+            document.getElementById('fontColorText').value = color;
+            bubbleStyles[currentBubble].fontColor = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateFontColorFromText() {
+            const color = document.getElementById('fontColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('fontColor').value = color;
+                bubbleStyles[currentBubble].fontColor = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // ===== 边框设置函数 =====
+        // 外边框宽度
+        function updateOuterBorder() {
+            const width = document.getElementById('outerBorderWidth').value;
+            document.getElementById('outerBorderWidthValue').textContent = width + 'px';
+            bubbleStyles[currentBubble].outerBorderWidth = parseFloat(width);
+            applyBubbleStyle(currentBubble);
+        }
+
+        // 外边框颜色
+        function updateOuterBorderColor() {
+            const color = document.getElementById('outerBorderColor').value;
+            document.getElementById('outerBorderColorText').value = color;
+            bubbleStyles[currentBubble].outerBorderColor = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateOuterBorderColorFromText() {
+            const color = document.getElementById('outerBorderColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('outerBorderColor').value = color;
+                bubbleStyles[currentBubble].outerBorderColor = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // 内边框宽度
+        function updateInnerBorder() {
+            const width = document.getElementById('innerBorderWidth').value;
+            document.getElementById('innerBorderWidthValue').textContent = width + 'px';
+            bubbleStyles[currentBubble].innerBorderWidth = parseFloat(width);
+            applyBubbleStyle(currentBubble);
+        }
+
+        // 内边框颜色
+        function updateInnerBorderColor() {
+            const color = document.getElementById('innerBorderColor').value;
+            document.getElementById('innerBorderColorText').value = color;
+            bubbleStyles[currentBubble].innerBorderColor = color;
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateInnerBorderColorFromText() {
+            const color = document.getElementById('innerBorderColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('innerBorderColor').value = color;
+                bubbleStyles[currentBubble].innerBorderColor = color;
+                applyBubbleStyle(currentBubble);
+            }
+        }
+
+        // 应用气泡样式
+        function applyBubbleStyle(type) {
+            const bubble = document.getElementById(type === 'other' ? 'bubbleOther' : 'bubbleMine');
+            const voiceBar = document.getElementById(type === 'other' ? 'voiceBarOther' : 'voiceBarMine');
+            const style = bubbleStyles[type];
+            
+            let bgStyle = '';
+            let boxShadow = '';
+            let backdropFilter = '';
+            let border = '';
+            
+            const hexToRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            
+            switch (style.texture) {
+                case 'flat':
+                    bgStyle = hexToRgba(style.bgColor, style.bgOpacity / 100);
+                    break;
+                case 'glass':
+                    bgStyle = hexToRgba(style.bgColor, style.glassOpacity / 100);
+                    backdropFilter = `blur(${style.glassBlur}px)`;
+                    border = `1px solid rgba(255, 255, 255, 0.4)`;
+                    break;
+                case 'jelly':
+                    // 上下双高光果冻效果
+                    const topOpacity = style.jellyTopOpacity / 100;
+                    const topSize = style.jellyTopSize;
+                    const bottomOpacity = style.jellyBottomOpacity / 100;
+                    const bottomSize = style.jellyBottomSize;
+                    bgStyle = `linear-gradient(180deg, 
+                        rgba(255,255,255,${topOpacity}) 0%, 
+                        rgba(255,255,255,${topOpacity * 0.3}) ${topSize}%, 
+                        transparent ${topSize + 10}%, 
+                        transparent ${100 - bottomSize - 10}%, 
+                        rgba(255,255,255,${bottomOpacity * 0.3}) ${100 - bottomSize}%, 
+                        rgba(255,255,255,${bottomOpacity}) 100%
+                    ), ${hexToRgba(style.bgColor, style.bgOpacity / 100)}`;
+                    break;
+                case 'gradient':
+                    bgStyle = `linear-gradient(${style.gradientAngle}deg, ${style.gradientColor1} 0%, ${style.gradientColor2} 100%)`;
+                    break;
+                case 'soft':
+                    bgStyle = hexToRgba(style.bgColor, style.bgOpacity / 100);
+                    // 多层阴影实现更柔和的羽化效果
+                    const glowColor = style.softGlowColor;
+                    const outer = style.softOuter;
+                    const inner = style.softInner;
+                    boxShadow = `
+                        0 0 ${outer}px ${outer * 0.5}px ${hexToRgba(glowColor, 0.4)},
+                        0 0 ${outer * 2}px ${outer}px ${hexToRgba(glowColor, 0.25)},
+                        0 0 ${outer * 3}px ${outer * 1.5}px ${hexToRgba(glowColor, 0.15)},
+                        0 0 ${outer * 4}px ${outer * 2}px ${hexToRgba(glowColor, 0.08)},
+                        inset 0 0 ${inner}px ${inner * 0.3}px ${hexToRgba(glowColor, 0.3)}
+                    `.replace(/\s+/g, ' ').trim();
+                    break;
+            }
+            
+            // 添加普通阴影（毛玻璃也使用滑块控制阴影）
+            if (style.shadowSize > 0 && style.texture !== 'soft') {
+                const offsetX = style.shadowOffsetX || 0;
+                const offsetY = style.shadowOffsetY || 0;
+                boxShadow = `${offsetX}px ${offsetY + style.shadowSize}px ${style.shadowBlur}px ${style.shadowColor}`;
+            }
+            
+            // 处理外边框
+            if (style.outerBorderWidth > 0) {
+                border = `${style.outerBorderWidth}px solid ${style.outerBorderColor}`;
+            }
+            
+            // 处理内边框（使用inset box-shadow）
+            if (style.innerBorderWidth > 0) {
+                const innerBorderShadow = `inset 0 0 0 ${style.innerBorderWidth}px ${style.innerBorderColor}`;
+                if (boxShadow) {
+                    boxShadow = boxShadow + ', ' + innerBorderShadow;
+                } else {
+                    boxShadow = innerBorderShadow;
+                }
+            }
+            
+            // 应用到文字气泡
+            bubble.style.background = bgStyle;
+            bubble.style.boxShadow = boxShadow;
+            bubble.style.backdropFilter = backdropFilter;
+            bubble.style.webkitBackdropFilter = backdropFilter;
+            bubble.style.border = border;
+            bubble.style.fontSize = style.fontSize + 'px';
+            bubble.style.color = style.fontColor || '#333333';
+            
+            // 应用到语音条
+            if (voiceBar) {
+                voiceBar.style.background = bgStyle;
+                voiceBar.style.boxShadow = boxShadow;
+                voiceBar.style.backdropFilter = backdropFilter;
+                voiceBar.style.webkitBackdropFilter = backdropFilter;
+                voiceBar.style.border = border;
+                voiceBar.style.color = style.fontColor || '#333333';
+            }
+            
+            // 圆角 - 保持特殊角
+            const r = style.borderRadius;
+            if (type === 'other') {
+                bubble.style.borderRadius = `${r}px ${r}px ${r}px 4px`;
+                if (voiceBar) voiceBar.style.borderRadius = `${r}px ${r}px ${r}px 4px`;
+            } else {
+                bubble.style.borderRadius = `${r}px ${r}px 4px ${r}px`;
+                if (voiceBar) voiceBar.style.borderRadius = `${r}px ${r}px 4px ${r}px`;
+            }
+            
+            // 应用装饰物
+            applyDecorations(type);
+        }
+
+        // 装饰物功能
+        function addDecorationFromUrl() {
+            const url = document.getElementById('decorationUrl').value.trim();
+            if (url) {
+                // 找到第一个空槽位
+                const decorations = bubbleStyles[currentBubble].decorations;
+                let slot = decorations.findIndex(d => !d.src);
+                if (slot === -1) slot = 0;
+                
+                addDecoration(slot, url);
+                saveToSavedDecorations(url);
+                document.getElementById('decorationUrl').value = '';
+            }
+        }
+
+        function addDecoration(slot, src) {
+            bubbleStyles[currentBubble].decorations[slot] = {
+                src: src,
+                size: 20,
+                offsetX: 0,
+                offsetY: 0
+            };
+            updateDecorationSlot(slot);
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateDecorationSlot(slot) {
+            const decoration = bubbleStyles[currentBubble].decorations[slot];
+            const slotEl = document.querySelector(`.decoration-slot[data-slot="${slot}"]`);
+            
+            if (decoration && decoration.src) {
+                slotEl.classList.add('has-image');
+                
+                slotEl.innerHTML = `
+                    <img class="decoration-preview" src="${decoration.src}" alt="装饰">
+                    <div class="decoration-controls">
+                        <div class="decoration-slider-row">
+                            <span class="decoration-slider-label">大小</span>
+                            <input type="range" min="15" max="30" value="${decoration.size || 30}" oninput="updateDecorationSize(${slot}, this.value)">
+                            <span class="decoration-slider-value">${decoration.size || 20}px</span>
+                        </div>
+                        <div class="decoration-slider-row">
+                            <span class="decoration-slider-label">左右</span>
+                            <input type="range" min="-50" max="50" value="${decoration.offsetX || 0}" oninput="updateDecorationOffsetX(${slot}, this.value)">
+                            <span class="decoration-slider-value">${decoration.offsetX || 0}px</span>
+                        </div>
+                        <div class="decoration-slider-row">
+                            <span class="decoration-slider-label">上下</span>
+                            <input type="range" min="-50" max="50" value="${decoration.offsetY || 0}" oninput="updateDecorationOffsetY(${slot}, this.value)">
+                            <span class="decoration-slider-value">${decoration.offsetY || 0}px</span>
+                        </div>
+                        <button class="remove-decoration" onclick="removeDecoration(${slot}, event)">删除</button>
+                    </div>
+                `;
+            } else {
+                slotEl.classList.remove('has-image');
+                slotEl.innerHTML = `
+                    <div class="decoration-placeholder">+</div>
+                    <div class="decoration-text">通过URL添加</div>
+                    <div class="decoration-controls"></div>
+                `;
+            }
+        }
+
+        function updateDecorationOffsetX(slot, value) {
+            bubbleStyles[currentBubble].decorations[slot].offsetX = parseInt(value);
+            const slotEl = document.querySelector(`.decoration-slot[data-slot="${slot}"]`);
+            slotEl.querySelectorAll('.decoration-slider-value')[1].textContent = value + 'px';
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateDecorationOffsetY(slot, value) {
+            bubbleStyles[currentBubble].decorations[slot].offsetY = parseInt(value);
+            const slotEl = document.querySelector(`.decoration-slot[data-slot="${slot}"]`);
+            slotEl.querySelectorAll('.decoration-slider-value')[2].textContent = value + 'px';
+            applyBubbleStyle(currentBubble);
+        }
+
+        function updateDecorationSize(slot, size) {
+            bubbleStyles[currentBubble].decorations[slot].size = parseInt(size);
+            const slotEl = document.querySelector(`.decoration-slot[data-slot="${slot}"]`);
+            slotEl.querySelectorAll('.decoration-slider-value')[0].textContent = size + 'px';
+            applyBubbleStyle(currentBubble);
+        }
+
+        function removeDecoration(slot, event) {
+            event.stopPropagation();
+            bubbleStyles[currentBubble].decorations[slot] = { src: '', size: 30, offsetX: 0, offsetY: 0 };
+            updateDecorationSlot(slot);
+            applyBubbleStyle(currentBubble);
+        }
+
+        function loadDecorations(decorations) {
+            decorations.forEach((dec, i) => {
+                bubbleStyles[currentBubble].decorations[i] = dec;
+                updateDecorationSlot(i);
+            });
+        }
+
+        function applyDecorations(type) {
+            const bubble = document.getElementById(type === 'other' ? 'bubbleOther' : 'bubbleMine');
+            const decorations = bubbleStyles[type].decorations;
+            
+            // 移除现有装饰
+            bubble.querySelectorAll('.decoration-img').forEach(el => el.remove());
+            
+            // 四个角落的定位规则：
+            // slot 0 (左上): top + left
+            // slot 1 (右上): top + right
+            // slot 2 (左下): bottom + left
+            // slot 3 (右下): bottom + right
+            decorations.forEach((dec, slot) => {
+                if (dec && dec.src) {
+                    const img = document.createElement('img');
+                    img.className = 'decoration-img';
+                    img.src = dec.src;
+                    img.style.width = dec.size + 'px';
+                    img.style.height = dec.size + 'px';
+                    
+                    const baseOffset = -dec.size / 2;
+                    
+                    // 根据slot决定定位方式
+                    switch(slot) {
+                        case 0: // 左上
+                            img.style.top = (baseOffset + (dec.offsetY || 0)) + 'px';
+                            img.style.left = (baseOffset + (dec.offsetX || 0)) + 'px';
+                            break;
+                        case 1: // 右上
+                            img.style.top = (baseOffset + (dec.offsetY || 0)) + 'px';
+                            img.style.right = (baseOffset - (dec.offsetX || 0)) + 'px';
+                            break;
+                        case 2: // 左下
+                            img.style.bottom = (baseOffset - (dec.offsetY || 0)) + 'px';
+                            img.style.left = (baseOffset + (dec.offsetX || 0)) + 'px';
+                            break;
+                        case 3: // 右下
+                            img.style.bottom = (baseOffset - (dec.offsetY || 0)) + 'px';
+                            img.style.right = (baseOffset - (dec.offsetX || 0)) + 'px';
+                            break;
+                    }
+                    
+                    bubble.appendChild(img);
+                }
+            });
+        }
+
+        // 保存装饰物到本地
+        function saveToSavedDecorations(src) {
+            if (!savedDecorations.includes(src)) {
+                savedDecorations.unshift(src);
+                if (savedDecorations.length > 20) savedDecorations.pop();
+                localStorage.setItem('savedDecorations', JSON.stringify(savedDecorations));
+                renderSavedDecorations();
+            }
+        }
+
+        function renderSavedDecorations() {
+            const grid = document.getElementById('savedDecorationsGrid');
+            if (savedDecorations.length === 0) {
+                grid.innerHTML = '<div style="font-size:11px;color:#a090b0;">暂无保存的装饰</div>';
+                return;
+            }
+            grid.innerHTML = savedDecorations.map((src, i) => `
+                <div class="saved-decoration-item" onclick="useSavedDecorationWithSelector('${src.replace(/'/g, "\\'")}')">
+                    <img src="${src}" alt="装饰${i + 1}">
+                    <button class="delete-saved" onclick="deleteSavedDecoration(${i}, event)">×</button>
+                </div>
+            `).join('');
+        }
+
+        function useSavedDecoration(src) {
+            // 旧函数保留兼容，现在改用位置选择器
+            useSavedDecorationWithSelector(src);
+        }
+
+        function deleteSavedDecoration(index, event) {
+            event.stopPropagation();
+            savedDecorations.splice(index, 1);
+            localStorage.setItem('savedDecorations', JSON.stringify(savedDecorations));
+            renderSavedDecorations();
+        }
+
+        // 预设功能
+        function openSavePresetModal() {
+            document.getElementById('presetModal').classList.add('show');
+            document.getElementById('presetNameInput').value = '';
+            document.getElementById('presetNameInput').focus();
+        }
+
+        function closePresetModal() {
+            document.getElementById('presetModal').classList.remove('show');
+        }
+
+        function savePreset() {
+            const name = document.getElementById('presetNameInput').value.trim();
+            if (!name) {
+                showToast('请输入预设名称');
+                return;
+            }
+            
+            const preset = {
+                name: name,
+                date: new Date().toLocaleString(),
+                styles: JSON.parse(JSON.stringify(bubbleStyles)),
+                transferStyles: JSON.parse(JSON.stringify(transferCardStyles))
+            };
+            
+            presets.unshift(preset);
+            localStorage.setItem('bubblePresets', JSON.stringify(presets));
+            renderPresetList();
+            closePresetModal();
+            showToast('预设已保存');
+        }
+
+        function renderPresetList() {
+            const list = document.getElementById('presetList');
+            if (presets.length === 0) {
+                list.innerHTML = '<div class="no-preset">暂无保存的预设</div>';
+                return;
+            }
+            list.innerHTML = presets.map((p, i) => `
+                <div class="preset-item">
+                    <span class="preset-name">${p.name}</span>
+                    <div class="preset-item-actions">
+                        <button class="preset-item-btn preset-load" onclick="loadPreset(${i})">加载</button>
+                        <button class="preset-item-btn preset-delete" onclick="deletePreset(${i})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadPreset(index) {
+            const preset = presets[index];
+            bubbleStyles.other = JSON.parse(JSON.stringify(preset.styles.other));
+            bubbleStyles.mine = JSON.parse(JSON.stringify(preset.styles.mine));
+            loadStyleToControls(bubbleStyles[currentBubble]);
+            applyBubbleStyle('other');
+            applyBubbleStyle('mine');
+            
+            // 加载转账卡片样式
+            if (preset.transferStyles) {
+                transferCardStyles.other = JSON.parse(JSON.stringify(preset.transferStyles.other));
+                transferCardStyles.mine = JSON.parse(JSON.stringify(preset.transferStyles.mine));
+                loadTransferCardStyleToControls(transferCardStyles[currentTransferCard]);
+                applyTransferCardStyle('other');
+                applyTransferCardStyle('mine');
+            }
+            
+            showToast('预设已加载');
+        }
+
+        function deletePreset(index) {
+            presets.splice(index, 1);
+            localStorage.setItem('bubblePresets', JSON.stringify(presets));
+            renderPresetList();
+            showToast('预设已删除');
+        }
+
+        // 格式选择
+        function selectFormat(format) {
+            codeFormat = format;
+            document.querySelectorAll('.format-option').forEach(opt => {
+                if (opt.dataset.format === format) {
+                    opt.style.borderColor = '#c4a5e8';
+                    opt.style.background = 'linear-gradient(135deg, #f8f0ff, #fff5f8)';
+                    opt.style.color = '#7a5a9a';
+                    opt.style.fontWeight = '500';
+                } else {
+                    opt.style.borderColor = '#e8d4f0';
+                    opt.style.background = 'white';
+                    opt.style.color = '#8a7a9a';
+                    opt.style.fontWeight = 'normal';
+                }
+            });
+        }
+
+        // 生成代码
+        function generateCode() {
+            if (codeFormat === 'jrsy') {
+                generateJRSYCode();
+            } else {
+                generateEVECode();
+            }
+        }
+
+        // 生成EVE格式代码
+        function generateEVECode() {
+            const rcvCfg = bubbleStyles.other;
+            const sndCfg = bubbleStyles.mine;
+            
+            // 工具函数：颜色转换
+            const toRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            
+            // 工具函数：生成滤镜
+            const makeFilter = (hexColor) => {
+                const r = parseInt(hexColor.slice(1, 3), 16);
+                const g = parseInt(hexColor.slice(3, 5), 16);
+                const b = parseInt(hexColor.slice(5, 7), 16);
+                const bright = (r + g + b) / 3 / 255;
+                return `brightness(0) saturate(100%) invert(${Math.round(bright * 100)}%) sepia(10%) saturate(500%) hue-rotate(${Math.round((r - b) / 2)}deg)`;
+            };
+            
+            // 工具函数：让颜色变浅
+            const lightenColor = (hex, percent = 30) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const newR = Math.min(255, Math.round(r + (255 - r) * percent / 100));
+                const newG = Math.min(255, Math.round(g + (255 - g) * percent / 100));
+                const newB = Math.min(255, Math.round(b + (255 - b) * percent / 100));
+                return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+            };
+            
+            // 构建样式配置
+            const makeStyle = (cfg, isSnd) => {
+                const r = cfg.borderRadius;
+                const radius = isSnd ? `${r}px ${r}px 4px ${r}px` : `${r}px ${r}px ${r}px 4px`;
+                
+                let bgVal = '', shadowVal = 'none', blurVal = 'none', borderVal = 'none', innerShadow = '';
+                
+                switch (cfg.texture) {
+                    case 'flat':
+                        bgVal = toRgba(cfg.bgColor, cfg.bgOpacity / 100);
+                        break;
+                    case 'glass':
+                        bgVal = toRgba(cfg.bgColor, cfg.glassOpacity / 100);
+                        blurVal = `blur(${cfg.glassBlur}px)`;
+                        borderVal = '1px solid rgba(255, 255, 255, 0.4)';
+                        break;
+                    case 'jelly':
+                        // 上下双高光果冻效果
+                        const topOp = cfg.jellyTopOpacity / 100;
+                        const topSz = cfg.jellyTopSize;
+                        const bottomOp = cfg.jellyBottomOpacity / 100;
+                        const bottomSz = cfg.jellyBottomSize;
+                        bgVal = `linear-gradient(180deg, rgba(255,255,255,${topOp}) 0%, rgba(255,255,255,${topOp * 0.3}) ${topSz}%, transparent ${topSz + 10}%, transparent ${100 - bottomSz - 10}%, rgba(255,255,255,${bottomOp * 0.3}) ${100 - bottomSz}%, rgba(255,255,255,${bottomOp}) 100%), ${toRgba(cfg.bgColor, cfg.bgOpacity / 100)}`;
+                        break;
+                    case 'gradient':
+                        bgVal = `linear-gradient(${cfg.gradientAngle}deg, ${cfg.gradientColor1} 0%, ${cfg.gradientColor2} 100%)`;
+                        break;
+                    case 'soft':
+                        bgVal = toRgba(cfg.bgColor, cfg.bgOpacity / 100);
+                        const o = cfg.softOuter, i = cfg.softInner, gc = cfg.softGlowColor;
+                        shadowVal = `0 0 ${o}px ${o * 0.5}px ${toRgba(gc, 0.4)}, 0 0 ${o * 2}px ${o}px ${toRgba(gc, 0.25)}, 0 0 ${o * 3}px ${o * 1.5}px ${toRgba(gc, 0.15)}, 0 0 ${o * 4}px ${o * 2}px ${toRgba(gc, 0.08)}, inset 0 0 ${i}px ${i * 0.3}px ${toRgba(gc, 0.3)}`;
+                        break;
+                }
+                
+                if (cfg.shadowSize > 0 && cfg.texture !== 'soft') {
+                    const sOffX = cfg.shadowOffsetX || 0;
+                    const sOffY = cfg.shadowOffsetY || 0;
+                    shadowVal = `${sOffX}px ${sOffY + cfg.shadowSize}px ${cfg.shadowBlur}px ${cfg.shadowColor}`;
+                }
+                if (cfg.outerBorderWidth > 0) {
+                    borderVal = `${cfg.outerBorderWidth}px solid ${cfg.outerBorderColor}`;
+                }
+                
+                // 内边框使用inset box-shadow
+                if (cfg.innerBorderWidth > 0) {
+                    innerShadow = `inset 0 0 0 ${cfg.innerBorderWidth}px ${cfg.innerBorderColor}`;
+                    if (shadowVal !== 'none') {
+                        shadowVal = shadowVal + ', ' + innerShadow;
+                    } else {
+                        shadowVal = innerShadow;
+                    }
+                }
+                
+                return { bgVal, shadowVal, blurVal, borderVal, radius, color: cfg.fontColor || '#333333' };
+            };
+            
+            // 装饰物位置CSS生成
+            const decoPosition = (dec, slot) => {
+                const size = dec.size || 30, offX = dec.offsetX || 0, offY = dec.offsetY || 0;
+                const half = size / 2;
+                const cornerNames = ['左上', '右上', '左下', '右下'];
+                let css = `    /* 装饰物-${cornerNames[slot]} */\n    width: ${size}px !important;\n    height: ${size}px !important;\n`;
+                
+                if (slot === 0) css += `    top: ${Math.round(-half + offY)}px !important;\n    left: ${Math.round(-half + offX)}px !important;\n`;
+                else if (slot === 1) css += `    top: ${Math.round(-half + offY)}px !important;\n    right: ${Math.round(-half - offX)}px !important;\n`;
+                else if (slot === 2) css += `    bottom: ${Math.round(-half - offY)}px !important;\n    left: ${Math.round(-half + offX)}px !important;\n`;
+                else css += `    bottom: ${Math.round(-half - offY)}px !important;\n    right: ${Math.round(-half - offX)}px !important;\n`;
+                
+                return css;
+            };
+            
+            // 获取有效装饰
+            const getDecos = (arr) => arr.map((d, i) => ({ d, i })).filter(x => x.d && x.d.src).slice(0, 2);
+            
+            const sndS = makeStyle(sndCfg, true);
+            const rcvS = makeStyle(rcvCfg, false);
+            
+            // 构建输出
+            let css = `/**\n * ✧ ⁺◦ ⋆⊹⋆\n * 代码由猫猫鱼の聊天气泡设计器生成\n * ✧ ⁺◦ ⋆⊹⋆\n */\n\n`;
+            css += `/* ─── 请保留“猫猫鱼”字样。大家食用愉快~ ─── */\n`;
+            css += `/* ─── 适配eve小手机 ─── */\n\n`;
+        
+            // ═══ 发送方气泡 ═══
+            css += `/* ─── 我的消息气泡 ─── */\n`;
+            css += `.message-container.sent .message-bubble {\n`;
+            css += `    background: ${sndS.bgVal} !important;\n`;
+            css += `    border-radius: ${sndS.radius} !important;\n`;
+            css += `    color: ${sndS.color} !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `    padding: 6px 10px;\n`;
+            if (sndS.borderVal !== 'none') css += `    border: ${sndS.borderVal} !important;\n`;
+            if (sndS.shadowVal !== 'none') css += `    box-shadow: ${sndS.shadowVal} !important;\n`;
+            if (sndS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${sndS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${sndS.blurVal} !important;\n`;
+            }
+            css += `}\n\n`;
+            
+            // 发送方装饰
+            const sndDecos = getDecos(sndCfg.decorations);
+            if (sndDecos.length > 0) {
+                css += `/* ─── 我的装饰物1 ─── */\n`;
+                css += `.message-container.sent .message-bubble::before {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += decoPosition(sndDecos[0].d, sndDecos[0].i);
+                css += `    background-image: url('${sndDecos[0].d.src}') !important;\n`;
+                css += `    background-size: contain !important;\n`;
+                css += `    background-repeat: no-repeat !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `    z-index: 10 !important;\n`;
+                css += `}\n\n`;
+            }
+            if (sndDecos.length > 1) {
+                css += `/* ─── 我的装饰物2 ─── */\n`;
+                css += `.message-container.sent .message-bubble::after {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += decoPosition(sndDecos[1].d, sndDecos[1].i);
+                css += `    background-image: url('${sndDecos[1].d.src}') !important;\n`;
+                css += `    background-size: contain !important;\n`;
+                css += `    background-repeat: no-repeat !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `    z-index: 10 !important;\n`;
+                css += `}\n\n`;
+            }
+            
+            // ═══ 接收方气泡 ═══
+            css += `/* ─── ta的消息气泡 ─── */\n`;
+            css += `.message-container.received .message-bubble {\n`;
+            css += `    background: ${rcvS.bgVal} !important;\n`;
+            css += `    border-radius: ${rcvS.radius} !important;\n`;
+            css += `    color: ${rcvS.color} !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `    padding: 6px 10px;\n`;
+            if (rcvS.borderVal !== 'none') css += `    border: ${rcvS.borderVal} !important;\n`;
+            if (rcvS.shadowVal !== 'none') css += `    box-shadow: ${rcvS.shadowVal} !important;\n`;
+            if (rcvS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${rcvS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${rcvS.blurVal} !important;\n`;
+            }
+            css += `}\n\n`;
+            
+            // 接收方装饰
+            const rcvDecos = getDecos(rcvCfg.decorations);
+            if (rcvDecos.length > 0) {
+                css += `/* ─── ta的装饰物1 ─── */\n`;
+                css += `.message-container.received .message-bubble::before {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += decoPosition(rcvDecos[0].d, rcvDecos[0].i);
+                css += `    background-image: url('${rcvDecos[0].d.src}') !important;\n`;
+                css += `    background-size: contain !important;\n`;
+                css += `    background-repeat: no-repeat !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `    z-index: 10 !important;\n`;
+                css += `}\n\n`;
+            }
+            if (rcvDecos.length > 1) {
+                css += `/* ─── ta的装饰物2 ─── */\n`;
+                css += `.message-container.received .message-bubble::after {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += decoPosition(rcvDecos[1].d, rcvDecos[1].i);
+                css += `    background-image: url('${rcvDecos[1].d.src}') !important;\n`;
+                css += `    background-size: contain !important;\n`;
+                css += `    background-repeat: no-repeat !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `    z-index: 10 !important;\n`;
+                css += `}\n\n`;
+            }
+            
+            // ═══ 语音消息 ═══
+            css += `/* ─── 语音时长颜色 ─── */\n`;
+            css += `.message-container.sent .voice-message-bar .voice-duration {\n    color: ${sndS.color} !important;\n}\n`;
+            css += `.message-container.received .voice-message-bar .voice-duration {\n    color: ${rcvS.color} !important;\n}\n\n`;
+            
+            css += `/* ─── 语音图标滤镜 ─── */\n`;
+            css += `.message-container.sent .voice-message-bar .voice-icon {\n    filter: ${makeFilter(sndS.color)};\n}\n`;
+            css += `.message-container.received .voice-message-bar .voice-icon {\n    filter: ${makeFilter(rcvS.color)};\n}\n\n`;
+            
+            // ═══ 转账卡片 ═══
+            css += `/* ─── 我的转账卡片 ─── */\n`;
+            css += `.message-container.sent .transfer-card {\n`;
+            css += `    background: ${sndS.bgVal} !important;\n`;
+            if (sndS.borderVal !== 'none') {
+                css += `    border: ${sndS.borderVal} !important;\n`;
+            } else {
+                css += `    border: none !important;\n`;
+            }
+            if (sndS.shadowVal !== 'none') {
+                css += `    box-shadow: ${sndS.shadowVal} !important;\n`;
+            }
+            if (sndS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${sndS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${sndS.blurVal} !important;\n`;
+            }
+            css += `    border-radius: 12px !important;\n`;
+            css += `    padding: 8px 12px !important;\n`;
+            css += `    overflow: visible !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `}\n`;
+            css += `.message-container.sent .transfer-amount {\n`;
+            css += `    font-size: 18px !important;\n`;
+            css += `    font-weight: 600 !important;\n`;
+            css += `    text-align: center !important;\n`;
+            css += `    color: ${sndS.color} !important;\n`;
+            css += `    margin: 4px 0 !important;\n`;
+            css += `}\n`;
+            css += `.message-container.sent .transfer-amount span {\n`;
+            css += `    color: ${sndS.color} !important;\n`;
+            css += `}\n`;
+            css += `.message-container.sent .transfer-note {\n`;
+            css += `    font-size: 12px !important;\n`;
+            css += `    text-align: center !important;\n`;
+            css += `    color: ${sndS.color} !important;\n`;
+            css += `    opacity: 0.8 !important;\n`;
+            css += `}\n`;
+            css += `.message-container.sent .transfer-title::after {\n`;
+            css += `    content: "⌯>ᴗo⌯ಣ" !important;\n`;
+            css += `    font-size: 11px !important;\n`;
+            css += `    display: block !important;\n`;
+            css += `    text-align: center !important;\n`;
+            css += `    color: ${sndS.color} !important;\n`;
+            css += `    opacity: 0.6 !important;\n`;
+            css += `}\n`;
+            css += `.message-container.sent .transfer-card::after {\n`;
+            css += `    display: none !important;\n`;
+            css += `}\n\n`;
+            
+            css += `/* ─── ta的转账卡片 ─── */\n`;
+            css += `.message-container.received .transfer-card {\n`;
+            css += `    background: ${rcvS.bgVal} !important;\n`;
+            if (rcvS.borderVal !== 'none') {
+                css += `    border: ${rcvS.borderVal} !important;\n`;
+            } else {
+                css += `    border: none !important;\n`;
+            }
+            if (rcvS.shadowVal !== 'none') {
+                css += `    box-shadow: ${rcvS.shadowVal} !important;\n`;
+            }
+            if (rcvS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${rcvS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${rcvS.blurVal} !important;\n`;
+            }
+            css += `    border-radius: 12px !important;\n`;
+            css += `    padding: 8px 12px !important;\n`;
+            css += `    overflow: visible !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `}\n`;
+            css += `.message-container.received .transfer-amount {\n`;
+            css += `    font-size: 18px !important;\n`;
+            css += `    font-weight: 600 !important;\n`;
+            css += `    text-align: center !important;\n`;
+            css += `    color: ${rcvS.color} !important;\n`;
+            css += `    margin: 4px 0 !important;\n`;
+            css += `}\n`;
+            css += `.message-container.received .transfer-amount span {\n`;
+            css += `    color: ${rcvS.color} !important;\n`;
+            css += `}\n`;
+            css += `.message-container.received .transfer-note {\n`;
+            css += `    font-size: 12px !important;\n`;
+            css += `    text-align: center !important;\n`;
+            css += `    color: ${rcvS.color} !important;\n`;
+            css += `    opacity: 0.8 !important;\n`;
+            css += `}\n`;
+            css += `.message-container.received .transfer-title::after {\n`;
+            css += `    content: "♡♡♡" !important;\n`;
+            css += `    font-size: 11px !important;\n`;
+            css += `    display: block !important;\n`;
+            css += `    text-align: center !important;\n`;
+            css += `    color: ${rcvS.color} !important;\n`;
+            css += `    opacity: 0.6 !important;\n`;
+            css += `}\n`;
+            css += `.message-container.received .transfer-card::after {\n`;
+            css += `    display: none !important;\n`;
+            css += `}\n`;
+            
+            // ═══ 转账卡片背景图 ═══
+            const sndTransfer = transferCardStyles.mine;
+            const rcvTransfer = transferCardStyles.other;
+            
+            // 我的转账卡片背景图
+            if (sndTransfer.bgUrl) {
+                css += `\n/* ─── 我的转账卡片背景图 ─── */\n`;
+                css += `.message-container.sent .transfer-card {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    overflow: hidden !important;\n`;
+                css += `}\n`;
+                css += `.message-container.sent .transfer-card::before {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += `    top: 0 !important;\n`;
+                css += `    left: 0 !important;\n`;
+                css += `    right: 0 !important;\n`;
+                css += `    bottom: 0 !important;\n`;
+                css += `    background-image: url('${sndTransfer.bgUrl}') !important;\n`;
+                css += `    background-size: cover !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    opacity: ${sndTransfer.bgOpacity / 100} !important;\n`;
+                css += `    z-index: 0 !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `}\n`;
+                
+                // 蒙版
+                if (sndTransfer.overlayOpacity > 0) {
+                    css += `.message-container.sent .transfer-card::after {\n`;
+                    css += `    content: '' !important;\n`;
+                    css += `    display: block !important;\n`;
+                    css += `    position: absolute !important;\n`;
+                    css += `    top: 0 !important;\n`;
+                    css += `    left: 0 !important;\n`;
+                    css += `    right: 0 !important;\n`;
+                    css += `    bottom: 0 !important;\n`;
+                    css += `    background: ${toRgba(sndTransfer.overlayColor, sndTransfer.overlayOpacity / 100)} !important;\n`;
+                    css += `    z-index: 1 !important;\n`;
+                    css += `    pointer-events: none !important;\n`;
+                    css += `}\n`;
+                }
+                
+                // 确保内容在最上层
+                css += `.message-container.sent .transfer-card .transfer-amount,\n`;
+                css += `.message-container.sent .transfer-card .transfer-note,\n`;
+                css += `.message-container.sent .transfer-card .transfer-title {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    z-index: 2 !important;\n`;
+                css += `}\n`;
+            }
+            
+            // ta的转账卡片背景图
+            if (rcvTransfer.bgUrl) {
+                css += `\n/* ─── ta的转账卡片背景图 ─── */\n`;
+                css += `.message-container.received .transfer-card {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    overflow: hidden !important;\n`;
+                css += `}\n`;
+                css += `.message-container.received .transfer-card::before {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += `    top: 0 !important;\n`;
+                css += `    left: 0 !important;\n`;
+                css += `    right: 0 !important;\n`;
+                css += `    bottom: 0 !important;\n`;
+                css += `    background-image: url('${rcvTransfer.bgUrl}') !important;\n`;
+                css += `    background-size: cover !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    opacity: ${rcvTransfer.bgOpacity / 100} !important;\n`;
+                css += `    z-index: 0 !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `}\n`;
+                
+                // 蒙版
+                if (rcvTransfer.overlayOpacity > 0) {
+                    css += `.message-container.received .transfer-card::after {\n`;
+                    css += `    content: '' !important;\n`;
+                    css += `    display: block !important;\n`;
+                    css += `    position: absolute !important;\n`;
+                    css += `    top: 0 !important;\n`;
+                    css += `    left: 0 !important;\n`;
+                    css += `    right: 0 !important;\n`;
+                    css += `    bottom: 0 !important;\n`;
+                    css += `    background: ${toRgba(rcvTransfer.overlayColor, rcvTransfer.overlayOpacity / 100)} !important;\n`;
+                    css += `    z-index: 1 !important;\n`;
+                    css += `    pointer-events: none !important;\n`;
+                    css += `}\n`;
+                }
+                
+                // 确保内容在最上层
+                css += `.message-container.received .transfer-card .transfer-amount,\n`;
+                css += `.message-container.received .transfer-card .transfer-note,\n`;
+                css += `.message-container.received .transfer-card .transfer-title {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    z-index: 2 !important;\n`;
+                css += `}\n`;
+            }
+            
+            // 显示代码
+            document.getElementById('codeOutput').classList.add('show');
+            document.getElementById('codeContent').textContent = css;
+        }
+
+        // 生成JRSY格式代码
+        function generateJRSYCode() {
+            const rcvCfg = bubbleStyles.other;
+            const sndCfg = bubbleStyles.mine;
+            
+            // 工具函数：颜色转换
+            const toRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            
+            // 工具函数：生成滤镜
+            const makeFilter = (hexColor) => {
+                const r = parseInt(hexColor.slice(1, 3), 16);
+                const g = parseInt(hexColor.slice(3, 5), 16);
+                const b = parseInt(hexColor.slice(5, 7), 16);
+                const bright = (r + g + b) / 3 / 255;
+                return `brightness(0) saturate(100%) invert(${Math.round(bright * 100)}%) sepia(10%) saturate(500%) hue-rotate(${Math.round((r - b) / 2)}deg)`;
+            };
+            
+            // 工具函数：让颜色变浅
+            const lightenColor = (hex, percent = 30) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const newR = Math.min(255, Math.round(r + (255 - r) * percent / 100));
+                const newG = Math.min(255, Math.round(g + (255 - g) * percent / 100));
+                const newB = Math.min(255, Math.round(b + (255 - b) * percent / 100));
+                return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+            };
+            
+            // 构建样式配置
+            const makeStyle = (cfg, isSnd) => {
+                const r = cfg.borderRadius;
+                const radius = isSnd ? `${r}px ${r}px 4px ${r}px` : `${r}px ${r}px ${r}px 4px`;
+                
+                let bgVal = '', shadowVal = 'none', blurVal = 'none', borderVal = 'none', innerShadow = '';
+                
+                switch (cfg.texture) {
+                    case 'flat':
+                        bgVal = toRgba(cfg.bgColor, cfg.bgOpacity / 100);
+                        break;
+                    case 'glass':
+                        bgVal = toRgba(cfg.bgColor, cfg.glassOpacity / 100);
+                        blurVal = `blur(${cfg.glassBlur}px)`;
+                        borderVal = '1px solid rgba(255, 255, 255, 0.4)';
+                        break;
+                    case 'jelly':
+                        // 上下双高光果冻效果
+                        const topOp2 = cfg.jellyTopOpacity / 100;
+                        const topSz2 = cfg.jellyTopSize;
+                        const bottomOp2 = cfg.jellyBottomOpacity / 100;
+                        const bottomSz2 = cfg.jellyBottomSize;
+                        bgVal = `linear-gradient(180deg, rgba(255,255,255,${topOp2}) 0%, rgba(255,255,255,${topOp2 * 0.3}) ${topSz2}%, transparent ${topSz2 + 10}%, transparent ${100 - bottomSz2 - 10}%, rgba(255,255,255,${bottomOp2 * 0.3}) ${100 - bottomSz2}%, rgba(255,255,255,${bottomOp2}) 100%), ${toRgba(cfg.bgColor, cfg.bgOpacity / 100)}`;
+                        break;
+                    case 'gradient':
+                        bgVal = `linear-gradient(${cfg.gradientAngle}deg, ${cfg.gradientColor1} 0%, ${cfg.gradientColor2} 100%)`;
+                        break;
+                    case 'soft':
+                        bgVal = toRgba(cfg.bgColor, cfg.bgOpacity / 100);
+                        const o = cfg.softOuter, i = cfg.softInner, gc = cfg.softGlowColor;
+                        shadowVal = `0 0 ${o}px ${o * 0.5}px ${toRgba(gc, 0.4)}, 0 0 ${o * 2}px ${o}px ${toRgba(gc, 0.25)}, 0 0 ${o * 3}px ${o * 1.5}px ${toRgba(gc, 0.15)}, 0 0 ${o * 4}px ${o * 2}px ${toRgba(gc, 0.08)}, inset 0 0 ${i}px ${i * 0.3}px ${toRgba(gc, 0.3)}`;
+                        break;
+                }
+                
+                if (cfg.shadowSize > 0 && cfg.texture !== 'soft') {
+                    const sOffX2 = cfg.shadowOffsetX || 0;
+                    const sOffY2 = cfg.shadowOffsetY || 0;
+                    shadowVal = `${sOffX2}px ${sOffY2 + cfg.shadowSize}px ${cfg.shadowBlur}px ${cfg.shadowColor}`;
+                }
+                if (cfg.outerBorderWidth > 0) {
+                    borderVal = `${cfg.outerBorderWidth}px solid ${cfg.outerBorderColor}`;
+                }
+                
+                if (cfg.innerBorderWidth > 0) {
+                    innerShadow = `inset 0 0 0 ${cfg.innerBorderWidth}px ${cfg.innerBorderColor}`;
+                    if (shadowVal !== 'none') {
+                        shadowVal = shadowVal + ', ' + innerShadow;
+                    } else {
+                        shadowVal = innerShadow;
+                    }
+                }
+                
+                return { bgVal, shadowVal, blurVal, borderVal, radius, color: cfg.fontColor || '#333333' };
+            };
+            
+            // 装饰物位置CSS生成
+            const decoPosition = (dec, slot) => {
+                const size = dec.size || 30, offX = dec.offsetX || 0, offY = dec.offsetY || 0;
+                const half = size / 2;
+                const cornerNames = ['左上', '右上', '左下', '右下'];
+                let css = `    /* 装饰物-${cornerNames[slot]} */\n    width: ${size}px;\n    height: ${size}px;\n`;
+                
+                if (slot === 0) css += `    top: ${Math.round(-half + offY)}px;\n    left: ${Math.round(-half + offX)}px;\n`;
+                else if (slot === 1) css += `    top: ${Math.round(-half + offY)}px;\n    right: ${Math.round(-half - offX)}px;\n`;
+                else if (slot === 2) css += `    bottom: ${Math.round(-half - offY)}px;\n    left: ${Math.round(-half + offX)}px;\n`;
+                else css += `    bottom: ${Math.round(-half - offY)}px;\n    right: ${Math.round(-half - offX)}px;\n`;
+                
+                return css;
+            };
+            
+            // 获取有效装饰
+            const getDecos = (arr) => arr.map((d, i) => ({ d, i })).filter(x => x.d && x.d.src).slice(0, 2);
+            
+            const sndS = makeStyle(sndCfg, true);
+            const rcvS = makeStyle(rcvCfg, false);
+            
+            // 构建输出 - JRSY格式
+            let css = `/**\n * ✧ ⁺◦ ⋆⊹⋆\n * 代码由猫猫鱼の聊天气泡设计器生成\n * ✧ ⁺◦ ⋆⊹⋆\n */\n\n`;
+            css += `/* ─── 请保留"猫猫鱼"字样。大家食用愉快~ ─── */\n`;
+            css += `/* ─── 适配jrsy小手机 ─── */\n\n`;
+        
+            // ═══ 发送方气泡 ═══
+            css += `/* ─── 我的消息气泡 ─── */\n`;
+            css += `.message.sent .message-content,\n.message.sent .voice-message-bar {\n`;
+            css += `    background: ${sndS.bgVal} !important;\n`;
+            css += `    border-radius: ${sndS.radius} !important;\n`;
+            css += `    color: ${sndS.color} !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `    padding: 6px 10px;\n`;
+            if (sndS.borderVal !== 'none') css += `    border: ${sndS.borderVal} !important;\n`;
+            if (sndS.shadowVal !== 'none') css += `    box-shadow: ${sndS.shadowVal} !important;\n`;
+            if (sndS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${sndS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${sndS.blurVal} !important;\n`;
+            }
+            css += `}\n\n`;
+            
+            // 发送方装饰
+            const sndDecos = getDecos(sndCfg.decorations);
+            if (sndDecos.length > 0) {
+                css += `/* ─── 我的装饰物1 ─── */\n`;
+                css += `.message.sent .message-content::before,\n.message.sent .voice-message-bar::before {\n`;
+                css += `    content: "";\n`;
+                css += `    position: absolute;\n`;
+                css += decoPosition(sndDecos[0].d, sndDecos[0].i);
+                css += `    background: url('${sndDecos[0].d.src}') no-repeat center / contain;\n`;
+                css += `    pointer-events: none;\n`;
+                css += `    z-index: 10;\n`;
+                css += `}\n\n`;
+            }
+            if (sndDecos.length > 1) {
+                css += `/* ─── 我的装饰物2 ─── */\n`;
+                css += `.message.sent .message-content::after,\n.message.sent .voice-message-bar::after {\n`;
+                css += `    content: "";\n`;
+                css += `    position: absolute;\n`;
+                css += decoPosition(sndDecos[1].d, sndDecos[1].i);
+                css += `    background: url('${sndDecos[1].d.src}') no-repeat center / contain;\n`;
+                css += `    pointer-events: none;\n`;
+                css += `    z-index: 10;\n`;
+                css += `}\n\n`;
+            }
+            
+            // ═══ 接收方气泡 ═══
+            css += `/* ─── ta的消息气泡 ─── */\n`;
+            css += `.message.received .message-content,\n.message.received .voice-message-bar {\n`;
+            css += `    background: ${rcvS.bgVal} !important;\n`;
+            css += `    border-radius: ${rcvS.radius} !important;\n`;
+            css += `    color: ${rcvS.color} !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `    padding: 6px 10px;\n`;
+            if (rcvS.borderVal !== 'none') css += `    border: ${rcvS.borderVal} !important;\n`;
+            if (rcvS.shadowVal !== 'none') css += `    box-shadow: ${rcvS.shadowVal} !important;\n`;
+            if (rcvS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${rcvS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${rcvS.blurVal} !important;\n`;
+            }
+            css += `}\n\n`;
+            
+            // 接收方装饰
+            const rcvDecos = getDecos(rcvCfg.decorations);
+            if (rcvDecos.length > 0) {
+                css += `/* ─── ta的装饰物1 ─── */\n`;
+                css += `.message.received .message-content::before,\n.message.received .voice-message-bar::before {\n`;
+                css += `    content: "";\n`;
+                css += `    position: absolute;\n`;
+                css += decoPosition(rcvDecos[0].d, rcvDecos[0].i);
+                css += `    background: url('${rcvDecos[0].d.src}') no-repeat center / contain;\n`;
+                css += `    pointer-events: none;\n`;
+                css += `    z-index: 10;\n`;
+                css += `}\n\n`;
+            }
+            if (rcvDecos.length > 1) {
+                css += `/* ─── ta的装饰物2 ─── */\n`;
+                css += `.message.received .message-content::after,\n.message.received .voice-message-bar::after {\n`;
+                css += `    content: "";\n`;
+                css += `    position: absolute;\n`;
+                css += decoPosition(rcvDecos[1].d, rcvDecos[1].i);
+                css += `    background: url('${rcvDecos[1].d.src}') no-repeat center / contain;\n`;
+                css += `    pointer-events: none;\n`;
+                css += `    z-index: 10;\n`;
+                css += `}\n\n`;
+            }
+            
+            // ═══ 语音消息 ═══
+            css += `/* ─── 语音时长颜色 ─── */\n`;
+            css += `.message.sent .voice-message-bar .voice-duration {\n    color: ${sndS.color} !important;\n}\n`;
+            css += `.message.received .voice-message-bar .voice-duration {\n    color: ${rcvS.color} !important;\n}\n\n`;
+            
+            css += `/* ─── 语音图标滤镜 ─── */\n`;
+            css += `.message.sent .voice-message-bar .voice-icon {\n    filter: ${makeFilter(sndS.color)};\n}\n`;
+            css += `.message.received .voice-message-bar .voice-icon {\n    filter: ${makeFilter(rcvS.color)};\n}\n\n`;
+            
+            // ═══ 转账卡片 ═══
+            css += `/* ─── 我的转账卡片 ─── */\n`;
+            css += `.message.sent .transfer-card,\n.message.sent .message-content .transfer-confirm-card {\n`;
+            css += `    background: ${sndS.bgVal} !important;\n`;
+            css += `    border-radius: 12px !important;\n`;
+            css += `    padding: 8px 12px !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `    overflow: visible !important;\n`;
+            if (sndS.borderVal !== 'none') css += `    border: ${sndS.borderVal} !important;\n`;
+            if (sndS.shadowVal !== 'none') css += `    box-shadow: ${sndS.shadowVal} !important;\n`;
+            if (sndS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${sndS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${sndS.blurVal} !important;\n`;
+            }
+            css += `}\n\n`;
+            
+            css += `/* ─── ta的转账卡片 ─── */\n`;
+            css += `.message.received .transfer-card,\n.message.received .received-transfer-card,\n.message.received .message-content .transfer-confirm-card {\n`;
+            css += `    background: ${rcvS.bgVal} !important;\n`;
+            css += `    border-radius: 12px !important;\n`;
+            css += `    padding: 8px 12px !important;\n`;
+            css += `    position: relative !important;\n`;
+            css += `    overflow: visible !important;\n`;
+            if (rcvS.borderVal !== 'none') css += `    border: ${rcvS.borderVal} !important;\n`;
+            if (rcvS.shadowVal !== 'none') css += `    box-shadow: ${rcvS.shadowVal} !important;\n`;
+            if (rcvS.blurVal !== 'none') {
+                css += `    backdrop-filter: ${rcvS.blurVal} !important;\n`;
+                css += `    -webkit-backdrop-filter: ${rcvS.blurVal} !important;\n`;
+            }
+            css += `}\n\n`;
+            
+            // 生成转账卡片的浅色版本
+            const sndLightColor = lightenColor(sndS.color, 30);
+            const rcvLightColor = lightenColor(rcvS.color, 30);
+            
+            css += `/* ─── 转账卡片-发送方文字 ─── */\n`;
+            css += `.message.sent .transfer-card,\n.message.sent .transfer-card *,\n`;
+            css += `.message.sent .message-content .transfer-confirm-card,\n.message.sent .message-content .transfer-confirm-card * {\n`;
+            css += `    color: ${sndLightColor} !important;\n`;
+            css += `}\n\n`;
+            
+            css += `/* ─── 转账卡片-接收方文字 ─── */\n`;
+            css += `.message.received .transfer-card,\n.message.received .transfer-card *,\n`;
+            css += `.message.received .received-transfer-card,\n.message.received .received-transfer-card *,\n`;
+            css += `.message.received .message-content .transfer-confirm-card,\n.message.received .message-content .transfer-confirm-card * {\n`;
+            css += `    color: ${rcvLightColor} !important;\n`;
+            css += `}\n\n`;
+            
+            css += `/* ─── 转账图标-发送方 ─── */\n`;
+            css += `.message.sent .transfer-card .transfer-icon,\n.message.sent .transfer-card svg,\n.message.sent .transfer-card img,\n`;
+            css += `.message.sent .message-content .transfer-confirm-card .confirm-icon,\n`;
+            css += `.message.sent .message-content .transfer-confirm-card svg,\n.message.sent .message-content .transfer-confirm-card img {\n`;
+            css += `    filter: ${makeFilter(sndS.color)};\n`;
+            css += `    fill: ${sndS.color} !important;\n`;
+            css += `    stroke: ${sndS.color} !important;\n`;
+            css += `}\n\n`;
+            
+            css += `/* ─── 转账图标-接收方 ─── */\n`;
+            css += `.message.received .transfer-card .transfer-icon,\n.message.received .transfer-card svg,\n.message.received .transfer-card img,\n`;
+            css += `.message.received .received-transfer-card .transfer-icon,\n.message.received .received-transfer-card svg,\n.message.received .received-transfer-card img,\n`;
+            css += `.message.received .message-content .transfer-confirm-card .confirm-icon,\n`;
+            css += `.message.received .message-content .transfer-confirm-card svg,\n.message.received .message-content .transfer-confirm-card img {\n`;
+            css += `    filter: ${makeFilter(rcvS.color)};\n`;
+            css += `    fill: ${rcvS.color} !important;\n`;
+            css += `    stroke: ${rcvS.color} !important;\n`;
+            css += `}\n\n`;
+            
+            css += `/* ─── 转账分割线-发送方 ─── */\n`;
+            css += `.message.sent .transfer-card .transfer-status,\n.message.sent .transfer-card .transfer-divider,\n.message.sent .transfer-card hr,\n`;
+            css += `.message.sent .message-content .transfer-confirm-card .confirm-status,\n`;
+            css += `.message.sent .message-content .transfer-confirm-card .confirm-divider,\n.message.sent .message-content .transfer-confirm-card hr {\n`;
+            css += `    border-color: ${sndLightColor} !important;\n`;
+            css += `    border-top-color: ${sndLightColor} !important;\n`;
+            css += `    background-color: ${sndLightColor} !important;\n`;
+            css += `}\n\n`;
+            
+            css += `/* ─── 转账分割线-接收方 ─── */\n`;
+            css += `.message.received .transfer-card .transfer-status,\n.message.received .transfer-card .transfer-divider,\n.message.received .transfer-card hr,\n`;
+            css += `.message.received .received-transfer-card .transfer-status,\n.message.received .received-transfer-card .transfer-divider,\n.message.received .received-transfer-card hr,\n`;
+            css += `.message.received .message-content .transfer-confirm-card .confirm-status,\n`;
+            css += `.message.received .message-content .transfer-confirm-card .confirm-divider,\n.message.received .message-content .transfer-confirm-card hr {\n`;
+            css += `    border-color: ${rcvLightColor} !important;\n`;
+            css += `    border-top-color: ${rcvLightColor} !important;\n`;
+            css += `    background-color: ${rcvLightColor} !important;\n`;
+            css += `}\n`;
+            
+            // ═══ 转账卡片背景图 ═══
+            const sndTransferJRSY = transferCardStyles.mine;
+            const rcvTransferJRSY = transferCardStyles.other;
+            
+            // 我的转账卡片背景图
+            if (sndTransferJRSY.bgUrl) {
+                css += `\n/* ─── 我的转账卡片背景图 ─── */\n`;
+                // 关键：清除外层message-content的padding，让转账卡片能完全铺满
+                css += `.message.sent .message-content:has(.transfer-card),\n`;
+                css += `.message.sent .message-content:has(.transfer-confirm-card) {\n`;
+                css += `    background: transparent !important;\n`;
+                css += `    border: none !important;\n`;
+                css += `    box-shadow: none !important;\n`;
+                css += `    padding: 0 !important;\n`;
+                css += `}\n`;
+                css += `.message.sent .transfer-card,\n.message.sent .message-content .transfer-confirm-card {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    overflow: hidden !important;\n`;
+                css += `    border-radius: 12px !important;\n`;
+                css += `    padding: 12px 16px !important;\n`;
+                css += `    background: transparent !important;\n`;
+                css += `    box-sizing: border-box !important;\n`;
+                css += `}\n`;
+                css += `.message.sent .transfer-card::before,\n.message.sent .message-content .transfer-confirm-card::before {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += `    top: 0 !important;\n`;
+                css += `    left: 0 !important;\n`;
+                css += `    right: 0 !important;\n`;
+                css += `    bottom: 0 !important;\n`;
+                css += `    width: 100% !important;\n`;
+                css += `    height: 100% !important;\n`;
+                css += `    background-image: url('${sndTransferJRSY.bgUrl}') !important;\n`;
+                css += `    background-size: cover !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    background-repeat: no-repeat !important;\n`;
+                css += `    opacity: ${sndTransferJRSY.bgOpacity / 100} !important;\n`;
+                css += `    z-index: 0 !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `}\n`;
+                
+                // 蒙版
+                if (sndTransferJRSY.overlayOpacity > 0) {
+                    css += `.message.sent .transfer-card::after,\n.message.sent .message-content .transfer-confirm-card::after {\n`;
+                    css += `    content: '' !important;\n`;
+                    css += `    position: absolute !important;\n`;
+                    css += `    top: 0 !important;\n`;
+                    css += `    left: 0 !important;\n`;
+                    css += `    right: 0 !important;\n`;
+                    css += `    bottom: 0 !important;\n`;
+                    css += `    width: 100% !important;\n`;
+                    css += `    height: 100% !important;\n`;
+                    css += `    background: ${toRgba(sndTransferJRSY.overlayColor, sndTransferJRSY.overlayOpacity / 100)} !important;\n`;
+                    css += `    z-index: 1 !important;\n`;
+                    css += `    pointer-events: none !important;\n`;
+                    css += `}\n`;
+                }
+                
+                // 确保内容在最上层
+                css += `.message.sent .transfer-card > *,\n.message.sent .message-content .transfer-confirm-card > * {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    z-index: 2 !important;\n`;
+                css += `}\n`;
+            }
+            
+            // ta的转账卡片背景图
+            if (rcvTransferJRSY.bgUrl) {
+                css += `\n/* ─── ta的转账卡片背景图 ─── */\n`;
+                // 关键：清除外层message-content的padding，让转账卡片能完全铺满
+                css += `.message.received .message-content:has(.transfer-card),\n`;
+                css += `.message.received .message-content:has(.received-transfer-card),\n`;
+                css += `.message.received .message-content:has(.transfer-confirm-card) {\n`;
+                css += `    background: transparent !important;\n`;
+                css += `    border: none !important;\n`;
+                css += `    box-shadow: none !important;\n`;
+                css += `    padding: 0 !important;\n`;
+                css += `}\n`;
+                css += `.message.received .transfer-card,\n.message.received .received-transfer-card,\n.message.received .message-content .transfer-confirm-card {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    overflow: hidden !important;\n`;
+                css += `    border-radius: 12px !important;\n`;
+                css += `    padding: 12px 16px !important;\n`;
+                css += `    background: transparent !important;\n`;
+                css += `    box-sizing: border-box !important;\n`;
+                css += `}\n`;
+                css += `.message.received .transfer-card::before,\n.message.received .received-transfer-card::before,\n.message.received .message-content .transfer-confirm-card::before {\n`;
+                css += `    content: '' !important;\n`;
+                css += `    position: absolute !important;\n`;
+                css += `    top: 0 !important;\n`;
+                css += `    left: 0 !important;\n`;
+                css += `    right: 0 !important;\n`;
+                css += `    bottom: 0 !important;\n`;
+                css += `    width: 100% !important;\n`;
+                css += `    height: 100% !important;\n`;
+                css += `    background-image: url('${rcvTransferJRSY.bgUrl}') !important;\n`;
+                css += `    background-size: cover !important;\n`;
+                css += `    background-position: center !important;\n`;
+                css += `    background-repeat: no-repeat !important;\n`;
+                css += `    opacity: ${rcvTransferJRSY.bgOpacity / 100} !important;\n`;
+                css += `    z-index: 0 !important;\n`;
+                css += `    pointer-events: none !important;\n`;
+                css += `}\n`;
+                
+                // 蒙版
+                if (rcvTransferJRSY.overlayOpacity > 0) {
+                    css += `.message.received .transfer-card::after,\n.message.received .received-transfer-card::after,\n.message.received .message-content .transfer-confirm-card::after {\n`;
+                    css += `    content: '' !important;\n`;
+                    css += `    position: absolute !important;\n`;
+                    css += `    top: 0 !important;\n`;
+                    css += `    left: 0 !important;\n`;
+                    css += `    right: 0 !important;\n`;
+                    css += `    bottom: 0 !important;\n`;
+                    css += `    width: 100% !important;\n`;
+                    css += `    height: 100% !important;\n`;
+                    css += `    background: ${toRgba(rcvTransferJRSY.overlayColor, rcvTransferJRSY.overlayOpacity / 100)} !important;\n`;
+                    css += `    z-index: 1 !important;\n`;
+                    css += `    pointer-events: none !important;\n`;
+                    css += `}\n`;
+                }
+                
+                // 确保内容在最上层
+                css += `.message.received .transfer-card > *,\n.message.received .received-transfer-card > *,\n.message.received .message-content .transfer-confirm-card > * {\n`;
+                css += `    position: relative !important;\n`;
+                css += `    z-index: 2 !important;\n`;
+                css += `}\n`;
+            }
+            
+            // 显示代码
+            document.getElementById('codeOutput').classList.add('show');
+            document.getElementById('codeContent').textContent = css;
+        }
+        
+        // 复制代码
+        function copyCode() {
+            const code = document.getElementById('codeContent').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                showToast('代码已复制到剪贴板');
+            }).catch(() => {
+                showToast('复制失败，请手动复制');
+            });
+        }
+        
+        // 待添加的装饰物URL
+        let pendingDecorationUrl = '';
+        
+        // 显示位置选择器
+        function showCornerSelector() {
+            const url = document.getElementById('decorationUrl').value.trim();
+            if (!url) {
+                showToast('请先输入图片URL');
+                return;
+            }
+            
+            pendingDecorationUrl = url;
+            
+            // 设置预览图片
+            const previewImg = document.getElementById('cornerPreviewImg');
+            previewImg.src = url;
+            previewImg.onerror = function() {
+                showToast('图片加载失败，请检查URL');
+                hideCornerSelector();
+            };
+            
+            // 重置所有checkbox
+            document.getElementById('corner0').checked = false;
+            document.getElementById('corner1').checked = false;
+            document.getElementById('corner2').checked = false;
+            document.getElementById('corner3').checked = false;
+            
+            // 显示选择器
+            document.getElementById('cornerSelector').style.display = 'block';
+        }
+
+        // 隐藏位置选择器
+        function hideCornerSelector() {
+            document.getElementById('cornerSelector').style.display = 'none';
+            pendingDecorationUrl = '';
+            document.getElementById('decorationUrl').value = '';
+        }
+
+        // 确认添加装饰物
+        function confirmAddDecoration() {
+            if (!pendingDecorationUrl) {
+                showToast('没有待添加的装饰物');
+                return;
+            }
+            
+            const selectedCorners = [];
+            if (document.getElementById('corner0').checked) selectedCorners.push(0);
+            if (document.getElementById('corner1').checked) selectedCorners.push(1);
+            if (document.getElementById('corner2').checked) selectedCorners.push(2);
+            if (document.getElementById('corner3').checked) selectedCorners.push(3);
+            
+            if (selectedCorners.length === 0) {
+                showToast('请至少选择一个位置');
+                return;
+            }
+            
+            const currentDecorations = bubbleStyles[currentBubble].decorations;
+            const existingCount = currentDecorations.filter(d => d && d.src).length;
+            const newCount = selectedCorners.filter(slot => !currentDecorations[slot].src).length;
+            
+            if (existingCount + newCount > 2) {
+                showToast('最多只能添加2个装饰物');
+                return;
+            }
+            
+            selectedCorners.forEach(slot => {
+                addDecoration(slot, pendingDecorationUrl);
+            });
+            
+            saveToSavedDecorations(pendingDecorationUrl);
+            hideCornerSelector();
+            showToast(`已添加到 ${selectedCorners.length} 个位置`);
+        }
+
+        // 从已保存装饰物使用
+        function useSavedDecorationWithSelector(src) {
+            pendingDecorationUrl = src;
+            
+            const previewImg = document.getElementById('cornerPreviewImg');
+            previewImg.src = src;
+            
+            document.getElementById('corner0').checked = false;
+            document.getElementById('corner1').checked = false;
+            document.getElementById('corner2').checked = false;
+            document.getElementById('corner3').checked = false;
+            
+            document.getElementById('cornerSelector').style.display = 'block';
+        }
+
+        // ===== 转账卡片自定义功能 =====
+        let currentTransferCard = 'other';
+        
+        // 转账卡片样式配置
+        const transferCardStyles = {
+            other: {
+                bgUrl: '',
+                bgOpacity: 100,
+                overlayColor: '#ffffff',
+                overlayOpacity: 0
+            },
+            mine: {
+                bgUrl: '',
+                bgOpacity: 100,
+                overlayColor: '#ffffff',
+                overlayOpacity: 0
+            }
+        };
+        
+        // 选择转账卡片
+        function selectTransferCard(type) {
+            currentTransferCard = type;
+            document.querySelectorAll('.transfer-card-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.target === type);
+            });
+            loadTransferCardStyleToControls(transferCardStyles[type]);
+        }
+        
+        // 加载转账卡片样式到控制器
+        function loadTransferCardStyleToControls(style) {
+            document.getElementById('transferBgUrl').value = style.bgUrl || '';
+            document.getElementById('transferBgOpacity').value = style.bgOpacity;
+            document.getElementById('transferBgOpacityValue').textContent = style.bgOpacity + '%';
+            document.getElementById('transferOverlayColor').value = style.overlayColor;
+            document.getElementById('transferOverlayColorText').value = style.overlayColor;
+            document.getElementById('transferOverlayOpacity').value = style.overlayOpacity;
+            document.getElementById('transferOverlayOpacityValue').textContent = style.overlayOpacity + '%';
+            
+            // 更新预览框
+            const previewBox = document.getElementById('transferBgPreview');
+            const previewImg = document.getElementById('transferBgPreviewImg');
+            const previewOverlay = document.getElementById('transferBgPreviewOverlay');
+            
+            if (style.bgUrl) {
+                previewBox.classList.add('has-bg');
+                previewImg.src = style.bgUrl;
+                previewImg.style.display = 'block';
+                previewImg.style.opacity = style.bgOpacity / 100;
+            } else {
+                previewBox.classList.remove('has-bg');
+                previewImg.style.display = 'none';
+            }
+            
+            // 更新蒙版预览
+            const hexToRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            previewOverlay.style.background = hexToRgba(style.overlayColor, style.overlayOpacity / 100);
+        }
+        
+        // 应用背景图URL
+        function applyTransferBgUrl() {
+            const url = document.getElementById('transferBgUrl').value.trim();
+            if (!url) {
+                showToast('请输入背景图片URL');
+                return;
+            }
+            
+            // 测试图片是否可加载
+            const testImg = new Image();
+            testImg.onload = function() {
+                transferCardStyles[currentTransferCard].bgUrl = url;
+                loadTransferCardStyleToControls(transferCardStyles[currentTransferCard]);
+                applyTransferCardStyle(currentTransferCard);
+                showToast('背景图已应用');
+            };
+            testImg.onerror = function() {
+                showToast('图片加载失败，请检查URL');
+            };
+            testImg.src = url;
+        }
+        
+        // 移除背景图
+        function removeTransferBg() {
+            transferCardStyles[currentTransferCard].bgUrl = '';
+            document.getElementById('transferBgUrl').value = '';
+            loadTransferCardStyleToControls(transferCardStyles[currentTransferCard]);
+            applyTransferCardStyle(currentTransferCard);
+            showToast('背景图已移除');
+        }
+        
+        // 更新背景图透明度
+        function updateTransferBgOpacity() {
+            const opacity = parseInt(document.getElementById('transferBgOpacity').value);
+            document.getElementById('transferBgOpacityValue').textContent = opacity + '%';
+            transferCardStyles[currentTransferCard].bgOpacity = opacity;
+            
+            // 更新预览框
+            const previewImg = document.getElementById('transferBgPreviewImg');
+            previewImg.style.opacity = opacity / 100;
+            
+            applyTransferCardStyle(currentTransferCard);
+        }
+        
+        // 更新蒙版颜色
+        function updateTransferOverlayColor() {
+            const color = document.getElementById('transferOverlayColor').value;
+            document.getElementById('transferOverlayColorText').value = color;
+            transferCardStyles[currentTransferCard].overlayColor = color;
+            
+            // 更新预览框蒙版
+            const hexToRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            const previewOverlay = document.getElementById('transferBgPreviewOverlay');
+            previewOverlay.style.background = hexToRgba(color, transferCardStyles[currentTransferCard].overlayOpacity / 100);
+            
+            applyTransferCardStyle(currentTransferCard);
+        }
+        
+        function updateTransferOverlayColorFromText() {
+            const color = document.getElementById('transferOverlayColorText').value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                document.getElementById('transferOverlayColor').value = color;
+                transferCardStyles[currentTransferCard].overlayColor = color;
+                
+                const hexToRgba = (hex, alpha) => {
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                };
+                const previewOverlay = document.getElementById('transferBgPreviewOverlay');
+                previewOverlay.style.background = hexToRgba(color, transferCardStyles[currentTransferCard].overlayOpacity / 100);
+                
+                applyTransferCardStyle(currentTransferCard);
+            }
+        }
+        
+        // 更新蒙版透明度
+        function updateTransferOverlayOpacity() {
+            const opacity = parseInt(document.getElementById('transferOverlayOpacity').value);
+            document.getElementById('transferOverlayOpacityValue').textContent = opacity + '%';
+            transferCardStyles[currentTransferCard].overlayOpacity = opacity;
+            
+            // 更新预览框蒙版
+            const hexToRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            const previewOverlay = document.getElementById('transferBgPreviewOverlay');
+            previewOverlay.style.background = hexToRgba(transferCardStyles[currentTransferCard].overlayColor, opacity / 100);
+            
+            applyTransferCardStyle(currentTransferCard);
+        }
+        
+        // 应用转账卡片样式到预览
+        function applyTransferCardStyle(type) {
+            const card = document.getElementById(type === 'other' ? 'transferCardOther' : 'transferCardMine');
+            const bg = document.getElementById(type === 'other' ? 'transferBgOther' : 'transferBgMine');
+            const overlay = document.getElementById(type === 'other' ? 'transferOverlayOther' : 'transferOverlayMine');
+            const style = transferCardStyles[type];
+            
+            const hexToRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            
+            // 应用背景图
+            if (style.bgUrl) {
+                bg.style.backgroundImage = `url('${style.bgUrl}')`;
+                bg.style.opacity = style.bgOpacity / 100;
+            } else {
+                bg.style.backgroundImage = 'none';
+            }
+            
+            // 应用蒙版
+            overlay.style.background = hexToRgba(style.overlayColor, style.overlayOpacity / 100);
+        }
+        
+        // Toast提示
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+        
+        // 一键应用气泡样式到转账卡片
+        function applyBubbleStyleToTransferCard() {
+            // 获取当前选中的转账卡片类型对应的气泡样式
+            const bubbleStyle = bubbleStyles[currentTransferCard];
+            const card = document.getElementById(currentTransferCard === 'other' ? 'transferCardOther' : 'transferCardMine');
+            const content = card.querySelector('.transfer-content');
+            
+            const hexToRgba = (hex, alpha) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+            
+            // 构建背景样式
+            let bgStyle = '';
+            let boxShadow = '';
+            let backdropFilter = '';
+            let border = '';
+            
+            switch (bubbleStyle.texture) {
+                case 'flat':
+                    bgStyle = hexToRgba(bubbleStyle.bgColor, bubbleStyle.bgOpacity / 100);
+                    break;
+                case 'glass':
+                    bgStyle = hexToRgba(bubbleStyle.bgColor, bubbleStyle.glassOpacity / 100);
+                    backdropFilter = `blur(${bubbleStyle.glassBlur}px)`;
+                    border = `1px solid rgba(255, 255, 255, 0.4)`;
+                    break;
+                case 'jelly':
+                    const topOpacity = bubbleStyle.jellyTopOpacity / 100;
+                    const topSize = bubbleStyle.jellyTopSize;
+                    const bottomOpacity = bubbleStyle.jellyBottomOpacity / 100;
+                    const bottomSize = bubbleStyle.jellyBottomSize;
+                    bgStyle = `linear-gradient(180deg, 
+                        rgba(255,255,255,${topOpacity}) 0%, 
+                        rgba(255,255,255,${topOpacity * 0.3}) ${topSize}%, 
+                        transparent ${topSize + 10}%, 
+                        transparent ${100 - bottomSize - 10}%, 
+                        rgba(255,255,255,${bottomOpacity * 0.3}) ${100 - bottomSize}%, 
+                        rgba(255,255,255,${bottomOpacity}) 100%
+                    ), ${hexToRgba(bubbleStyle.bgColor, bubbleStyle.bgOpacity / 100)}`;
+                    break;
+                case 'gradient':
+                    bgStyle = `linear-gradient(${bubbleStyle.gradientAngle}deg, ${bubbleStyle.gradientColor1} 0%, ${bubbleStyle.gradientColor2} 100%)`;
+                    break;
+                case 'soft':
+                    bgStyle = hexToRgba(bubbleStyle.bgColor, bubbleStyle.bgOpacity / 100);
+                    const glowColor = bubbleStyle.softGlowColor;
+                    const outer = bubbleStyle.softOuter;
+                    const inner = bubbleStyle.softInner;
+                    boxShadow = `
+                        0 0 ${outer}px ${outer * 0.5}px ${hexToRgba(glowColor, 0.4)},
+                        0 0 ${outer * 2}px ${outer}px ${hexToRgba(glowColor, 0.25)},
+                        0 0 ${outer * 3}px ${outer * 1.5}px ${hexToRgba(glowColor, 0.15)},
+                        0 0 ${outer * 4}px ${outer * 2}px ${hexToRgba(glowColor, 0.08)},
+                        inset 0 0 ${inner}px ${inner * 0.3}px ${hexToRgba(glowColor, 0.3)}
+                    `.replace(/\s+/g, ' ').trim();
+                    break;
+            }
+            
+            // 添加普通阴影
+            if (bubbleStyle.shadowSize > 0 && bubbleStyle.texture !== 'soft') {
+                const offsetX = bubbleStyle.shadowOffsetX || 0;
+                const offsetY = bubbleStyle.shadowOffsetY || 0;
+                boxShadow = `${offsetX}px ${offsetY + bubbleStyle.shadowSize}px ${bubbleStyle.shadowBlur}px ${bubbleStyle.shadowColor}`;
+            }
+            
+            // 处理外边框
+            if (bubbleStyle.outerBorderWidth > 0) {
+                border = `${bubbleStyle.outerBorderWidth}px solid ${bubbleStyle.outerBorderColor}`;
+            }
+            
+            // 处理内边框
+            if (bubbleStyle.innerBorderWidth > 0) {
+                const innerBorderShadow = `inset 0 0 0 ${bubbleStyle.innerBorderWidth}px ${bubbleStyle.innerBorderColor}`;
+                if (boxShadow) {
+                    boxShadow = boxShadow + ', ' + innerBorderShadow;
+                } else {
+                    boxShadow = innerBorderShadow;
+                }
+            }
+            
+            // 应用样式到转账卡片
+            card.style.background = bgStyle;
+            card.style.boxShadow = boxShadow;
+            card.style.backdropFilter = backdropFilter;
+            card.style.webkitBackdropFilter = backdropFilter;
+            card.style.border = border;
+            card.style.borderRadius = bubbleStyle.borderRadius + 'px';
+            
+            // 应用文字颜色
+            const fontColor = bubbleStyle.fontColor || '#333333';
+            content.querySelector('.transfer-amount').style.color = fontColor;
+            content.querySelector('.transfer-note').style.color = fontColor;
+            
+            // 移除现有装饰物
+            card.querySelectorAll('.transfer-decoration-img').forEach(el => el.remove());
+            
+            // 应用装饰物（最多2个）
+            const decorations = bubbleStyle.decorations;
+            let decoCount = 0;
+            decorations.forEach((dec, slot) => {
+                if (dec && dec.src && decoCount < 2) {
+                    const img = document.createElement('img');
+                    img.className = 'transfer-decoration-img';
+                    img.src = dec.src;
+                    img.style.position = 'absolute';
+                    img.style.width = dec.size + 'px';
+                    img.style.height = dec.size + 'px';
+                    img.style.pointerEvents = 'none';
+                    img.style.zIndex = '10';
+                    
+                    const baseOffset = -dec.size / 2;
+                    
+                    switch(slot) {
+                        case 0: // 左上
+                            img.style.top = (baseOffset + (dec.offsetY || 0)) + 'px';
+                            img.style.left = (baseOffset + (dec.offsetX || 0)) + 'px';
+                            break;
+                        case 1: // 右上
+                            img.style.top = (baseOffset + (dec.offsetY || 0)) + 'px';
+                            img.style.right = (baseOffset - (dec.offsetX || 0)) + 'px';
+                            break;
+                        case 2: // 左下
+                            img.style.bottom = (baseOffset - (dec.offsetY || 0)) + 'px';
+                            img.style.left = (baseOffset + (dec.offsetX || 0)) + 'px';
+                            break;
+                        case 3: // 右下
+                            img.style.bottom = (baseOffset - (dec.offsetY || 0)) + 'px';
+                            img.style.right = (baseOffset - (dec.offsetX || 0)) + 'px';
+                            break;
+                    }
+                    
+                    card.appendChild(img);
+                    decoCount++;
+                }
+            });
+            
+            showToast(`已将${currentTransferCard === 'other' ? '对方' : '我的'}气泡样式应用到转账卡片`);
+        }
+        
+        // 初始化转账卡片样式
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTransferCardStyle('other');
+            applyTransferCardStyle('mine');
+        });
+    </script>
+</body>
+</html>
